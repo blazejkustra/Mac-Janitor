@@ -195,6 +195,7 @@ final class ReviewRegressionTests: XCTestCase {
         try FileManager.default.removeItem(atPath: moved + "/.git")
         for p in [inRoot, outside] { backdate(p, days: 40) }
         try FileManager.default.createDirectory(atPath: root + "/Library/r/.git/worktrees", withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(atPath: root + "/.cocoapods/repos/r/.git/worktrees", withIntermediateDirectories: true)
         // Another volume is not walked.
         let dmg = root + "/v.dmg", volume = root + "/volume"
         sh(["hdiutil", "create", "-quiet", "-size", "2m", "-fs", "APFS", "-volname", "v", dmg], cwd: root)
