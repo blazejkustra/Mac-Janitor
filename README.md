@@ -39,7 +39,8 @@ from the applet therefore plans only the targets it acts on, without measuring t
 afterwards. Scheduled runs empty that folder themselves, so their report shows what they freed.
 
 Worktrees are found by walking the home folder, skipping mounted volumes, `~/Library`,
-the Trash and `node_modules`: those registered with any repo there, plus plain copies in
+the Trash, `~/.cocoapods` (spec repos of a million files) and `node_modules`: those
+registered with any repo there, plus plain copies in
 `<repo>-worktrees`. A worktree whose `.git` file points nowhere is never removed
 whole, only its `node_modules`: its repo may have moved (the run reports the
 `git worktree repair` that reconnects it) or sit where the run cannot read. The PR
