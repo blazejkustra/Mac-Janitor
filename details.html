@@ -4,32 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mac Janitor: how it works</title>
-<meta name="description" content="A menu-bar app that clears old worktrees, node_modules, build output, caches and the Trash. You see every item before anything goes.">
-<meta name="theme-color" content="#0b1513">
+<meta name="description" content="What Mac Janitor removes, what it leaves alone, the one permission it asks for, and answers to common questions.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="Mac Janitor: how it works">
+<meta property="og:image" content="https://blazejkustra.github.io/Mac-Janitor/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/icon-256.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="page">
 <header class="nav wrap">
-  <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="32" height="32">Mac Janitor</a>
-  <nav class="links">
+  <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="30" height="30">Mac Janitor</a>
+  <nav class="links" aria-label="Site">
     <a href="#cleans">What it cleans</a>
     <a href="#access">Permissions</a>
-    <a href="#faq">FAQ</a>
-    <a href="./">Download</a>
-    <a class="gh" href="https://github.com/blazejkustra/Mac-Janitor" aria-label="Source on GitHub">
+    <a href="#faq">Questions</a>
+    <a class="home-link" href="./">Download</a>
+    <a class="icon" href="https://github.com/blazejkustra/Mac-Janitor" aria-label="Source on GitHub">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
     </a>
   </nav>
 </header>
 
 <main>
-  <section class="intro wrap">
+  <section class="intro-page wrap">
     <h1>How Mac Janitor works</h1>
     <p class="lede">What it removes, what it leaves alone, the one permission it asks for, and answers to common questions.</p>
   </section>
@@ -39,70 +42,76 @@
       <div>
         <h2>What it cleans</h2>
         <p class="sub">Things a build, an install or a download makes again. Each rule waits until the item has sat unused for a while.</p>
-        <ul class="kinds">
-          <li><span class="dot" style="--c:#6e6af0"></span><span><b>Old worktrees</b> merged with nothing left to push, or untouched for 30 days</span></li>
-          <li><span class="dot" style="--c:#34c759"></span><span><b>node_modules</b> in worktrees nobody opened for 3 days</span></li>
-          <li><span class="dot" style="--c:#ff9f0a"></span><span><b>Build output</b> in projects that have not changed for two weeks</span></li>
-          <li><span class="dot" style="--c:#ff375f"></span><span><b>Caches</b> nothing has read for a month</span></li>
-          <li><span class="dot" style="--c:#0a84ff"></span><span><b>Docker images</b>, <b>Android emulators</b> and <b>agent scratch folders</b> left unused</span></li>
-          <li><span class="dot" style="--c:#8e8e93"></span><span><b>The Trash</b>, for items trashed over a week ago</span></li>
+        <ul class="list">
+          <li><b>Old worktrees</b> merged with nothing left to push, or untouched for 30 days</li>
+          <li><b>node_modules</b> in worktrees nobody opened for 3 days</li>
+          <li><b>Build output</b> in projects that have not changed for two weeks</li>
+          <li><b>Caches</b> nothing has read for a month</li>
+          <li><b>Docker images</b>, <b>Android emulators</b> and <b>agent scratch folders</b> left unused</li>
+          <li><b>The Trash</b>, for items trashed over a week ago</li>
         </ul>
       </div>
       <div>
         <h2>What it never touches</h2>
         <p class="sub">The rules are careful by default, and every check runs again right before a delete.</p>
-        <ul class="never">
-          <li><span>Anything a running app has open, or a LaunchAgent points to</span></li>
-          <li><span>Anything you pin to keep, and everything inside it</span></li>
-          <li><span>Unpushed commits. Uncommitted changes are saved to a patch first</span></li>
-          <li><span>Your documents, photos and music</span></li>
-          <li><span>Large files, unless you pick them by hand. Then they go to the Trash</span></li>
+        <ul class="list">
+          <li>Anything a running app has open, or a LaunchAgent points to</li>
+          <li>Anything you pin to keep, and everything inside it</li>
+          <li>Unpushed commits. Uncommitted changes are saved to a patch first</li>
+          <li>Your documents, photos and music</li>
+          <li>Large files, unless you pick them by hand. Then they go to the Trash</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <section class="feature reverse wrap" id="access">
-    <div class="copy">
+  <section class="feature wrap" id="access">
+    <div>
       <h2>One switch in Privacy &amp; Security</h2>
       <p>macOS guards your Desktop, Documents, Downloads and the Trash. Without Full Disk Access, Mac Janitor skips them and never pops up a prompt.</p>
       <p>Setup opens the right page in System Settings and shows the moment access is on. Only Mac Janitor needs to be in the list: its scheduled cleans run as the same app.</p>
     </div>
     <figure class="single">
-      <img src="assets/setup-access.png" width="800" height="600" alt="The setup window's Full Disk Access step, with a live status and steps to allow it">
+      <img src="assets/setup-access.png" width="800" height="628" alt="The setup window's Full Disk Access step, with a live status and steps to allow it" loading="lazy">
     </figure>
   </section>
 
   <section class="faq wrap" id="faq">
     <h2>Questions</h2>
-    <details>
-      <summary>Can I undo a clean?</summary>
-      <p>Deleted items are gone, except large files, which go to the Trash. Before a worktree goes, its uncommitted changes and small untracked files are saved for 30 days, and commits that no branch holds get a ref.</p>
-    </details>
-    <details>
-      <summary>Will it delete something I am working on?</summary>
-      <p>Anything open in a running app, or used as a working folder, is left alone. So is every item you pin. Each rule also waits days or weeks of inactivity before an item qualifies.</p>
-    </details>
-    <details>
-      <summary>Why does it need Full Disk Access?</summary>
-      <p>To look inside Desktop, Documents, Downloads and the Trash. It still works without it and skips those folders.</p>
-    </details>
-    <details>
-      <summary>Does it run in the background?</summary>
-      <p>Only if you turn on automatic cleaning. A small background job then checks every hour and cleans at the interval you choose, or sooner when free space runs low.</p>
-    </details>
-    <details>
-      <summary>Does it send anything anywhere?</summary>
-      <p>No. It reads your disk and asks git and gh about your own repos. Nothing leaves your Mac.</p>
-    </details>
+    <div class="faq-list">
+      <details>
+        <summary>Can I undo a clean?</summary>
+        <p>Deleted items are gone, except large files, which go to the Trash. Before a worktree goes, its uncommitted changes and small untracked files are saved for 30 days, and commits that no branch holds get a ref.</p>
+      </details>
+      <details>
+        <summary>Will it delete something I am working on?</summary>
+        <p>Anything open in a running app, or used as a working folder, is left alone. So is every item you pin. Each rule also waits days or weeks of inactivity before an item qualifies.</p>
+      </details>
+      <details>
+        <summary>Why does it need Full Disk Access?</summary>
+        <p>To look inside Desktop, Documents, Downloads and the Trash. It still works without it and skips those folders.</p>
+      </details>
+      <details>
+        <summary>Does it run in the background?</summary>
+        <p>Only if you turn on automatic cleaning. A small background job then checks every hour and cleans at the interval you choose, or sooner when free space runs low.</p>
+      </details>
+      <details>
+        <summary>Does it use AI?</summary>
+        <p>No. Every decision comes from plain rules about age, git state and what is open, and you can read them in the source.</p>
+      </details>
+      <details>
+        <summary>Does it send anything anywhere?</summary>
+        <p>No. It reads your disk and asks git and gh about your own repos. Nothing leaves your Mac.</p>
+      </details>
+    </div>
   </section>
 </main>
 
 <footer class="foot wrap">
-  <span class="brand small"><img src="assets/logo.svg" alt="" width="20" height="20">Mac Janitor</span>
+  <span class="brand small"><img src="assets/logo.svg" alt="" width="18" height="18">Mac Janitor</span>
   <a href="https://github.com/blazejkustra/Mac-Janitor">Source on GitHub</a>
   <span>macOS 13 or later</span>
-  <span class="credits">Footage: sea and sailboat by dubassy (Mixkit), dandelion by ArtHouse Studio (Pexels), moon by Noel McShane (Pexels)</span>
+  <span class="credits">Cover photos from Unsplash by Andrew Svk, Karsten Winegeart and Alexey Marchenko</span>
 </footer>
 </body>
 </html>
