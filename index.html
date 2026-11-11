@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mac Janitor: disk space back from your dev tools</title>
-<meta name="description" content="A menu-bar app that clears old worktrees, node_modules, build output, caches and the Trash. You see every item before anything goes.">
+<title>Mac Janitor: clean up after your coding agents</title>
+<meta name="description" content="A free macOS menu-bar app that clears the worktrees, node_modules, build output and caches parallel coding agents leave behind, and skips anything still in use.">
 <meta name="theme-color" content="#000000">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Mac Janitor">
 <meta property="og:url" content="https://blazejkustra.github.io/Mac-Janitor/">
-<meta property="og:title" content="Mac Janitor: disk space back from your dev tools">
-<meta property="og:description" content="Old worktrees, node_modules, build output and caches, cleared from the menu bar. You see every item first.">
+<meta property="og:title" content="Mac Janitor: clean up after your coding agents">
+<meta property="og:description" content="Parallel agents fill your disk with worktrees, node_modules and build output. Mac Janitor clears the finished ones from the menu bar.">
 <meta property="og:image" content="https://blazejkustra.github.io/Mac-Janitor/assets/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -46,8 +46,8 @@
     </header>
 
     <div class="intro">
-      <h1>Disk space back from your dev tools.</h1>
-      <p class="lede">Old worktrees, node_modules, build output and caches, cleared from the menu bar. You see every item first.</p>
+      <h1>Clean up after your coding agents.</h1>
+      <p class="lede">Every parallel agent gets its own worktree, node_modules and build output. Mac Janitor clears the ones that are done and skips anything an agent still has open.</p>
       <div class="ctas">
         <a class="btn main" href="https://github.com/blazejkustra/Mac-Janitor/releases/latest">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9-.7 0-1.9-.8-3.1-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3.1.7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.5 1.3-2.6 0 0-2.5-1-2.5-3.7zM14.1 5.5c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg>
@@ -67,13 +67,14 @@
       <img src="assets/panel-dark.png" width="720" height="1136" alt="The Mac Janitor menu-bar panel: 17.7 GB can be freed, split into old worktrees, worktree dependencies, Android emulators, caches, the Trash and more" loading="lazy">
     </figure>
     <div class="tour-copy">
-      <h2>Everything in one panel.</h2>
-      <p>Mac Janitor scans the places your dev tools fill up and shows how much each one holds. Plain rules decide what is old enough to go, so nothing new or in use qualifies.</p>
+      <h2>Everything your agents left behind, in one panel.</h2>
+      <p>Mac Janitor scans the places parallel agents and dev tools fill up, and shows how much each one holds. Plain rules decide what is old enough to go, and anything a running process has open is skipped.</p>
       <ul class="rows">
-        <li><b>Old worktrees</b><span>merged, or untouched for 30 days</span></li>
-        <li><b>node_modules</b><span>in worktrees idle for 3 days</span></li>
-        <li><b>Build output and caches</b><span>Xcode DerivedData, Gradle, pnpm, Yarn</span></li>
-        <li><b>Docker and emulators</b><span>images and devices left unused</span></li>
+        <li><b>Finished worktrees</b><span>merged with nothing left to push, or untouched for 30 days</span></li>
+        <li><b>node_modules in worktrees</b><span>nobody opened the worktree for 3 days</span></li>
+        <li><b>Build output and caches</b><span>.next, Pods, Gradle, Cargo, Xcode DerivedData, pnpm and Yarn stores</span></li>
+        <li><b>Docker images and emulators</b><span>images no container uses, Android emulators left idle</span></li>
+        <li><b>Claude Code scratch folders</b><span>sessions untouched for two weeks</span></li>
         <li><b>The Trash</b><span>items trashed over a week ago</span></li>
       </ul>
       <a class="more" href="details.html">What it never touches, and questions</a>

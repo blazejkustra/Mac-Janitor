@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mac Janitor: how it works</title>
-<meta name="description" content="What Mac Janitor removes, what it leaves alone, the one permission it asks for, and answers to common questions.">
+<title>How Mac Janitor works</title>
+<meta name="description" content="What Mac Janitor clears after your coding agents, what it leaves alone while they work, the one permission it asks for, and answers to common questions.">
 <meta name="theme-color" content="#000000">
-<meta property="og:title" content="Mac Janitor: how it works">
+<meta property="og:title" content="How Mac Janitor works">
 <meta property="og:image" content="https://blazejkustra.github.io/Mac-Janitor/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
@@ -34,32 +34,34 @@
 <main>
   <section class="intro-page wrap">
     <h1>How Mac Janitor works</h1>
-    <p class="lede">What it removes, what it leaves alone, the one permission it asks for, and answers to common questions.</p>
+    <p class="lede">What it clears after your agents, what it leaves alone while they work, the one permission it asks for, and answers to common questions.</p>
   </section>
 
   <section class="band wrap" id="cleans">
     <div class="split">
       <div>
         <h2>What it cleans</h2>
-        <p class="sub">Things a build, an install or a download makes again. Each rule waits until the item has sat unused for a while.</p>
+        <p class="sub">Each agent task tends to get its own git worktree, and each worktree grows its own dependencies and build output. Mac Janitor removes the copies that are done with. Each rule waits until an item has sat unused for a while.</p>
         <ul class="list">
-          <li><b>Old worktrees</b> merged with nothing left to push, or untouched for 30 days</li>
-          <li><b>node_modules</b> in worktrees nobody opened for 3 days</li>
-          <li><b>Build output</b> in projects that have not changed for two weeks</li>
-          <li><b>Caches</b> nothing has read for a month</li>
-          <li><b>Docker images</b>, <b>Android emulators</b> and <b>agent scratch folders</b> left unused</li>
-          <li><b>The Trash</b>, for items trashed over a week ago</li>
+          <li><b>Finished worktrees.</b> Merged into main with nothing left to push and idle for a day, or with an open PR and untouched for 3 days, or untouched for 30 days. Your main checkout and your branches stay.</li>
+          <li><b>node_modules in worktrees</b> nobody opened for 3 days. The worktree itself stays, so you can pick the task back up with one install.</li>
+          <li><b>Build output</b> (node_modules, .next, Pods, Gradle, Cargo target, SwiftPM .build, Xcode build) in projects that have not changed for two weeks.</li>
+          <li><b>Caches</b> nothing has read for a month: Xcode DerivedData and DeviceSupport, simulator caches, the pnpm store, Gradle, npx, bun and Yarn caches.</li>
+          <li><b>Docker images</b> no container uses, and <b>Android emulators</b> left unused for a week.</li>
+          <li><b>Claude Code scratch folders</b> from sessions untouched for two weeks.</li>
+          <li><b>The Trash</b>, for items trashed over a week ago.</li>
         </ul>
       </div>
       <div>
-        <h2>What it never touches</h2>
-        <p class="sub">The rules are careful by default, and every check runs again right before a delete.</p>
+        <h2>Safe while agents are running</h2>
+        <p class="sub">Agents work for hours without you watching. Every check runs again in the moment before a delete, so a folder that came into use during the scan is skipped.</p>
         <ul class="list">
-          <li>Anything a running app has open, or a LaunchAgent points to</li>
-          <li>Anything you pin to keep, and everything inside it</li>
-          <li>Unpushed commits. Uncommitted changes are saved to a patch first</li>
-          <li>Your documents, photos and music</li>
-          <li>Large files, unless you pick them by hand. Then they go to the Trash</li>
+          <li><b>Anything a running process has open or works in.</b> An agent working inside a worktree keeps that worktree, and everything in it, off the list.</li>
+          <li><b>New worktrees.</b> A merged worktree also has to sit idle for a day, so one an agent created minutes ago stays.</li>
+          <li><b>Unpushed commits.</b> A worktree with work no remote holds keeps it: uncommitted changes go to a patch and untracked files to an archive, both kept for 30 days, and loose commits get a git ref.</li>
+          <li><b>Anything a LaunchAgent points to,</b> and anything you pin, with everything inside it.</li>
+          <li><b>Your documents, photos and music.</b></li>
+          <li><b>Large files,</b> unless you pick them by hand. Then they go to the Trash.</li>
         </ul>
       </div>
     </div>
@@ -72,7 +74,7 @@
       <p>Setup opens the right page in System Settings and shows the moment access is on. Only Mac Janitor needs to be in the list: its scheduled cleans run as the same app.</p>
     </div>
     <figure class="single">
-      <img src="assets/setup-access.png" width="800" height="628" alt="The setup window's Full Disk Access step, with a live status and steps to allow it" loading="lazy">
+      <img src="assets/setup-access.png" width="800" height="600" alt="The setup window's Full Disk Access step, with a live status and steps to allow it" loading="lazy">
     </figure>
   </section>
 
@@ -80,12 +82,24 @@
     <h2>Questions</h2>
     <div class="faq-list">
       <details>
-        <summary>Can I undo a clean?</summary>
-        <p>Deleted items are gone, except large files, which go to the Trash. Before a worktree goes, its uncommitted changes and small untracked files are saved for 30 days, and commits that no branch holds get a ref.</p>
+        <summary>Will it delete a worktree an agent is still using?</summary>
+        <p>No. Right before each delete, Mac Janitor asks macOS which files and folders running processes have open or are working in. A worktree an agent is running in is skipped, and the clean lists it as in use. If that check fails, the run stops and deletes nothing.</p>
       </details>
       <details>
-        <summary>Will it delete something I am working on?</summary>
-        <p>Anything open in a running app, or used as a working folder, is left alone. So is every item you pin. Each rule also waits days or weeks of inactivity before an item qualifies.</p>
+        <summary>Which agents does it work with?</summary>
+        <p>Any tool that runs tasks in git worktrees, such as Claude Code, Codex, Cursor or your own scripts. It finds worktrees by asking git, wherever they live under your home folder, including hidden folders like .claude/worktrees. Scratch folder cleanup covers Claude Code sessions.</p>
+      </details>
+      <details>
+        <summary>I run a dozen agents at once. Will a scheduled clean get in their way?</summary>
+        <p>Scheduled cleans follow the same rules as a manual one, so anything in use is skipped. Automatic cleaning is off until you turn it on, and it can start early when free space drops below 20 GB.</p>
+      </details>
+      <details>
+        <summary>Does it use AI?</summary>
+        <p>No. Every decision comes from plain rules about age, git state and what is open, and you can read them in the source.</p>
+      </details>
+      <details>
+        <summary>Can I undo a clean?</summary>
+        <p>Deleted items are gone, except large files, which go to the Trash. Before a worktree goes, its uncommitted changes and small untracked files are saved for 30 days, and commits that no branch holds get a ref.</p>
       </details>
       <details>
         <summary>Why does it need Full Disk Access?</summary>
@@ -94,10 +108,6 @@
       <details>
         <summary>Does it run in the background?</summary>
         <p>Only if you turn on automatic cleaning. A small background job then checks every hour and cleans at the interval you choose, or sooner when free space runs low.</p>
-      </details>
-      <details>
-        <summary>Does it use AI?</summary>
-        <p>No. Every decision comes from plain rules about age, git state and what is open, and you can read them in the source.</p>
       </details>
       <details>
         <summary>Does it send anything anywhere?</summary>
