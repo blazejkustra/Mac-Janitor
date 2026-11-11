@@ -1,36 +1,11 @@
 // Builds every icon from the two SVG masters in assets/: logo.svg (the mark) and menubar.svg (the glyph).
 // Usage: swift scripts/icons.swift build          writes the app icon, menu-bar glyph and site icons
-//        swift scripts/icons.swift sheets <dir>   writes the palette and menu-bar review sheets
+//        swift scripts/icons.swift sheets <dir>   writes the icon and menu-bar review sheets
 import AppKit
-
-struct Palette {
-    let name: String
-    let top: String
-    let bottom: String
-    let depth: String
-    let glyph: String
-}
-
-let palettes = [
-    Palette(name: "Spruce", top: "#2f5a4e", bottom: "#0b1d18", depth: "#6f9a86", glyph: "#f2ead8"),
-    Palette(name: "Ink", top: "#2e3d5c", bottom: "#0b1020", depth: "#6c7f9e", glyph: "#f2ead8"),
-    Palette(name: "Charcoal", top: "#4a4239", bottom: "#171411", depth: "#a8916f", glyph: "#f4ecdc"),
-]
-let shipped = palettes[0]
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let assets = root.appendingPathComponent("assets")
-let master = try! String(contentsOf: assets.appendingPathComponent("logo.svg"), encoding: .utf8)
-
-/// The master in another palette; the master itself is drawn in the first one.
-func logoSVG(_ p: Palette) -> String {
-    let base = palettes[0]
-    return master
-        .replacingOccurrences(of: base.top, with: p.top)
-        .replacingOccurrences(of: base.bottom, with: p.bottom)
-        .replacingOccurrences(of: base.depth, with: p.depth)
-        .replacingOccurrences(of: base.glyph, with: p.glyph)
-}
+let logoSVG = try! String(contentsOf: assets.appendingPathComponent("logo.svg"), encoding: .utf8)
 
 func image(svg: String) -> NSImage {
     NSImage(data: Data(svg.utf8))!
@@ -100,14 +75,13 @@ func writePDF(_ image: NSImage, points: CGFloat, _ url: URL) {
 }
 
 func build() {
-    let svg = logoSVG(shipped)
-    let mark = image(svg: svg)
+    let mark = image(svg: logoSVG)
     writeAppIcon(mark, assets.appendingPathComponent("AppIcon.icns"))
     writePDF(mark, points: 64, assets.appendingPathComponent("Logo.pdf"))
     let glyph = image(svg: try! String(contentsOf: assets.appendingPathComponent("menubar.svg"), encoding: .utf8))
     writePDF(glyph, points: 18, assets.appendingPathComponent("MenuBarIcon.pdf"))
     let site = root.appendingPathComponent("site/assets")
-    try! svg.write(to: site.appendingPathComponent("logo.svg"), atomically: true, encoding: .utf8)
+    try! logoSVG.write(to: site.appendingPathComponent("logo.svg"), atomically: true, encoding: .utf8)
     writePNG(bitmap(256) { mark.draw(in: $0) }, site.appendingPathComponent("icon-256.png"))
     writePNG(bitmap(64) { mark.draw(in: $0) }, site.appendingPathComponent("favicon.png"))
 }
@@ -138,24 +112,19 @@ func picture(_ rep: NSBitmapImageRep, points: CGFloat) -> NSImage {
     return image
 }
 
-/// Each palette at 360 pt, with the real 64, 32 and 16 pt icon renders (at 2x) on dark and light.
-func paletteSheet(_ url: URL) {
+/// The icon at 360 pt, with the real 64, 32 and 16 pt renders (at 2x) on dark and light.
+func iconSheet(_ url: URL) {
+    let mark = image(svg: logoSVG)
     let sizes: [CGFloat] = [64, 32, 16]
-    let smalls = palettes.map { p in sizes.map { appIcon(image(svg: logoSVG(p)), pixels: Int($0) * 2) } }
-    let rep = sheet(width: 1320, height: 700, background: NSColor(white: 0.1, alpha: 1)) {
+    let rep = sheet(width: 440, height: 600, background: NSColor(white: 0.1, alpha: 1)) {
         NSColor(white: 0.95, alpha: 1).setFill()
-        NSRect(x: 0, y: 0, width: 1320, height: 92).fill()
-        text("Trash broom, three palettes", CGPoint(x: 40, y: 650), 22, .white, .semibold)
-        for (i, p) in palettes.enumerated() {
-            let x = 40 + CGFloat(i) * 430
-            image(svg: logoSVG(p)).draw(in: NSRect(x: x + 20, y: 220, width: 360, height: 360))
-            text(p.name + (p.name == shipped.name ? "  (shipped)" : ""), CGPoint(x: x + 20, y: 596), 16, .white, .medium)
-            for y: CGFloat in [120, 14] {
-                var sx = x + 20
-                for (j, small) in smalls[i].enumerated() {
-                    picture(small, points: sizes[j]).draw(in: NSRect(x: sx, y: y, width: sizes[j], height: sizes[j]))
-                    sx += sizes[j] + 20
-                }
+        NSRect(x: 0, y: 0, width: 440, height: 92).fill()
+        mark.draw(in: NSRect(x: 40, y: 200, width: 360, height: 360))
+        for y: CGFloat in [120, 14] {
+            var x: CGFloat = 40
+            for points in sizes {
+                picture(appIcon(mark, pixels: Int(points) * 2), points: points).draw(in: NSRect(x: x, y: y, width: points, height: points))
+                x += points + 20
             }
         }
     }
@@ -202,7 +171,7 @@ case "build":
 case "sheets" where args.count == 2:
     let dir = URL(fileURLWithPath: args[1])
     try! FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    paletteSheet(dir.appendingPathComponent("logo-options-v3.png"))
+    iconSheet(dir.appendingPathComponent("icon.png"))
     menubarSheet(dir.appendingPathComponent("menubar-final.png"))
 default:
     print("usage: swift scripts/icons.swift build | sheets <dir>")
