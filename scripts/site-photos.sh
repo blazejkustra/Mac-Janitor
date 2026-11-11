@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the site's hero photo, demo poster and social card from the Unsplash original (see site/assets/photos/README.md).
+# Builds the site's hero photo and social card from the Unsplash original (see site/assets/photos/README.md).
 # Usage: scripts/site-photos.sh <folder with the original, named glacier.jpg>
 set -euo pipefail
 SRC="${1:?folder with the original photo}"
@@ -29,9 +29,6 @@ tall() {
 wide glacier
 tall glacier
 
-ffmpeg -v error -y -i "$OUT/glacier-2560.jpg" -i "$ROOT/site/assets/panel-dark.png" -filter_complex "
-  [0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=brightness=-0.18:saturation=0.85[bg];
-  [1:v]scale=-2:820[panel];[bg][panel]overlay=(W-w)/2:(H-h)/2" -q:v 4 "$ROOT/site/assets/demo-poster.jpg"
 
 og="$(mktemp -t site-og).png"
 "$CHROME" --headless=new --hide-scrollbars --window-size=1200,630 --virtual-time-budget=5000 \

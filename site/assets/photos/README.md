@@ -9,5 +9,6 @@ The hero photo behind the landing page, under the
 
 `scripts/site-photos.sh` builds it from the original download: a 2560 x 1600 crop for wide screens
 and a 1080 x 1620 crop for phones, each as AVIF, WebP and JPEG. The colours are left as shot; the page
-darkens them behind the text. The same script renders `demo-poster.jpg` and the social card `og.jpg`
-(from `scripts/og.html`) on top of this photo.
+darkens them behind the text. The same script renders the social card `og.jpg`
+(from `scripts/og.html`) on top of this photo, and `scripts/site-panel.sh` puts the app panel on it for
+`demo-poster.jpg`.
