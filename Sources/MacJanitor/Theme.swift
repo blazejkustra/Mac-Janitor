@@ -10,9 +10,9 @@ enum Palette {
     static let stroke = dynamic(dark: NSColor(white: 1, alpha: 0.06), light: NSColor(white: 0, alpha: 0.07))
     static let divider = dynamic(dark: NSColor(white: 1, alpha: 0.08), light: NSColor(white: 0, alpha: 0.08))
     static let selection = dynamic(dark: NSColor(white: 1, alpha: 0.1), light: NSColor(white: 0, alpha: 0.07))
-    /// Spruce green from the app icon, a shade lighter in dark mode.
-    static let accent = dynamic(dark: NSColor(srgbRed: 0.16, green: 0.66, blue: 0.53, alpha: 1),
-                                light: NSColor(srgbRed: 0.07, green: 0.53, blue: 0.42, alpha: 1))
+    /// Glacier blue from the app icon, a shade lighter in dark mode.
+    static let accent = dynamic(dark: NSColor(srgbRed: 0.25, green: 0.55, blue: 0.75, alpha: 1),
+                                light: NSColor(srgbRed: 0.15, green: 0.40, blue: 0.58, alpha: 1))
     static let track = dynamic(dark: NSColor(white: 1, alpha: 0.1), light: NSColor(white: 0, alpha: 0.08))
 
     private static func dynamic(dark: NSColor, light: NSColor) -> Color {
