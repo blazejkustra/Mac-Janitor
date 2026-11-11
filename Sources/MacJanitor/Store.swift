@@ -3,7 +3,37 @@ import Foundation
 import JanitorCore
 import ServiceManagement
 
-/// One line in an expanded category.
+/// What a preview in progress has found so far.
+struct ScanState {
+    var step = "Starting"
+    var folder: String?
+    var done: Set<JanitorCore.Category> = []
+    var actions: [Action] = []
+    var skips: [Skip] = []
+
+    mutating func apply(_ event: ScanEvent) {
+        switch event {
+        case .step(let text):
+            step = text
+            folder = nil
+        case .folder(let path):
+            folder = path
+        case .found(let category, let found, let kept):
+            done.insert(category)
+            actions.removeAll { $0.category == category }
+            skips.removeAll { $0.category == category }
+            actions += found
+            skips += kept
+        }
+    }
+
+    var report: Report {
+        Report(startedAt: Date(), finishedAt: Date(), dryRun: true, freeBytesBefore: 0, freeBytesAfter: 0,
+               actions: actions, skips: skips, issues: [])
+    }
+}
+
+/// One line in a category's list.
 struct Item: Identifiable {
     enum Kind {
         case planned, failed, kept, guarded
@@ -17,6 +47,7 @@ struct Item: Identifiable {
     var bytes: Int64
     var kind: Kind
     var detail: String
+    var label: ItemLabel
 }
 
 @MainActor
@@ -34,8 +65,13 @@ final class Store: ObservableObject {
     @Published var problem: String?
     private var configProblem: String?
     @Published private(set) var loginStatus: SMAppService.Status
-    @Published var showSettings = false
-    @Published var expanded: JanitorCore.Category?
+    @Published private(set) var agentStatus: SMAppService.Status
+    @Published private(set) var fullDiskAccess: Bool
+    /// A preview in progress, shown until it finishes when there is no earlier preview.
+    @Published private(set) var scan: ScanState?
+    /// The category whose items the panel shows instead of the overview.
+    @Published var selected: JanitorCore.Category?
+    @Published var confirmingClean = false
     @Published var hoveredItem: String?
 
     /// The config `preview` was planned with.
@@ -53,7 +89,8 @@ final class Store: ObservableObject {
     /// Unless `live`, the state stays as given: no disk, CLI or timers.
     init(config: Config = Config(), freeBytes: Int64, totalBytes: Int64, lastRun: Report? = nil,
          preview: Report? = nil, busy: Busy? = nil, problem: String? = nil,
-         loginStatus: SMAppService.Status = .notRegistered, live: Bool = false) {
+         loginStatus: SMAppService.Status = .notRegistered, agentStatus: SMAppService.Status = .notRegistered,
+         fullDiskAccess: Bool = true, scan: ScanState? = nil, live: Bool = false) {
         self.config = config
         self.freeBytes = freeBytes
         self.totalBytes = totalBytes
@@ -63,13 +100,17 @@ final class Store: ObservableObject {
         self.busy = busy
         self.problem = problem
         self.loginStatus = loginStatus
+        self.agentStatus = agentStatus
+        self.fullDiskAccess = fullDiskAccess
+        self.scan = scan
         self.live = live
     }
 
     static func live() -> Store {
         let (free, total) = Self.diskSpace()
         let store = Store(config: Config(), freeBytes: free, totalBytes: total, lastRun: Report.load(),
-                          loginStatus: SMAppService.mainApp.status, live: true)
+                          loginStatus: SMAppService.mainApp.status, agentStatus: Background.status,
+                          fullDiskAccess: Privacy.hasFullDiskAccess, live: true)
         store.reloadConfig()
         store.startObserving()
         return store
@@ -85,13 +126,15 @@ final class Store: ObservableObject {
                 if self.busy == nil, Janitor.isRunning() { self.watchScheduledRun() }
             }
         }
-        // The panel is this app's only window, key while it is open.
         let center = NotificationCenter.default
-        observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.panelOpened() }
+        observers.append(center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] note in
+            Task { @MainActor in self?.windowBecameKey(note.object as? NSWindow) }
         })
-        observers.append(center.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.panelOpen = false }
+        observers.append(center.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] note in
+            Task { @MainActor in self?.windowResignedKey(note.object as? NSWindow) }
+        })
+        observers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
         })
     }
 
@@ -103,23 +146,35 @@ final class Store: ObservableObject {
         totalBytes > 0 ? Double(totalBytes - freeBytes) / Double(totalBytes) : 0
     }
 
-    /// Whether `preview` has data for this category.
+    /// The report the panel lists: the last preview, or what the one running found so far.
+    private var shown: Report? { preview ?? scan?.report }
+
+    /// Whether the panel has data for this category yet.
     func covers(_ c: JanitorCore.Category) -> Bool {
-        preview != nil && (previewedWith?.enabled(c) ?? false)
+        if preview != nil { return previewedWith?.enabled(c) ?? false }
+        return scan?.done.contains(c) ?? false
     }
 
+    /// Categories the user has turned on, in display order.
+    var enabledCategories: [JanitorCore.Category] { JanitorCore.Category.allCases.filter(config.enabled) }
+
+    /// A clean or preview has nothing to show for any category yet.
+    var isFirstScan: Bool { preview == nil && busy == .previewing }
+
     func items(_ c: JanitorCore.Category) -> [Item] {
-        guard let preview, config.enabled(c) else { return [] }
+        guard let preview = shown, config.enabled(c) else { return [] }
         var items: [Item] = []
         for a in preview.actions where a.category == c {
             let kind: Item.Kind = a.status == .failed ? .failed : config.isKept(a.target) ? .kept : .planned
-            items.append(Item(id: a.id, target: a.target, name: Format.name(a.target, c), bytes: a.bytes,
-                              kind: kind, detail: a.error ?? a.reason))
+            let label = ItemLabel.describe(a.target, c)
+            items.append(Item(id: a.id, target: a.target, name: label.title, bytes: a.bytes,
+                              kind: kind, detail: a.error ?? a.reason, label: label))
         }
         for s in preview.skips where s.category == c {
             let kind: Item.Kind = !s.kept ? .guarded : config.isKept(s.target) ? .kept : .pending
-            items.append(Item(id: s.id, target: s.target, name: Format.name(s.target, c), bytes: s.bytes,
-                              kind: kind, detail: s.reason))
+            let label = ItemLabel.describe(s.target, c)
+            items.append(Item(id: s.id, target: s.target, name: label.title, bytes: s.bytes,
+                              kind: kind, detail: s.reason, label: label))
         }
         func rank(_ k: Item.Kind) -> Int {
             switch k {
@@ -141,6 +196,8 @@ final class Store: ObservableObject {
     var planned: [Item] {
         JanitorCore.Category.allCases.flatMap { items($0) }.filter { $0.kind == .planned }
     }
+
+    var plannedBytes: Int64 { planned.reduce(0) { $0 + $1.bytes } }
 
     func issues(_ c: JanitorCore.Category) -> [String] {
         (preview ?? lastRun)?.issues.filter { $0.category == c }.map(\.message) ?? []
@@ -170,9 +227,12 @@ final class Store: ObservableObject {
         return lastRun.startedAt > preview.startedAt
     }
 
-    /// When the next scheduled run is due, or nil when paused.
+    /// Scheduled runs happen: the background job is registered and not paused.
+    var automatic: Bool { agentStatus.isOn && !config.paused }
+
+    /// When the next scheduled run is due, or nil when automatic cleaning is off.
     var nextRun: Date? {
-        guard !config.paused else { return nil }
+        guard automatic else { return nil }
         guard let lastRun, !isLowDisk else { return Date() }
         return max(Date(), lastRun.startedAt.addingTimeInterval(config.intervalHours * 3600))
     }
@@ -190,6 +250,35 @@ final class Store: ObservableObject {
         lastRun = Report.load()
         reloadConfig()
         loginStatus = SMAppService.mainApp.status
+        agentStatus = Background.status
+        Task { await refreshAccess() }
+    }
+
+    func refreshAccess() async {
+        guard live else { return }
+        let granted = await AccessCheck.run()
+        if granted && !fullDiskAccess {
+            // Folders the last preview could not read are readable now.
+            previewedWith = nil
+        }
+        if granted != fullDiskAccess { fullDiskAccess = granted }
+        agentStatus = Background.status
+    }
+
+    /// The menu-bar panel is the only window without a title.
+    private func isPanel(_ window: NSWindow?) -> Bool {
+        window.map { $0.className.contains("MenuBarExtra") || $0.title.isEmpty } ?? false
+    }
+
+    private func windowBecameKey(_ window: NSWindow?) {
+        guard isPanel(window) else { return refresh() }
+        panelOpened()
+    }
+
+    private func windowResignedKey(_ window: NSWindow?) {
+        guard isPanel(window) else { return }
+        panelOpen = false
+        confirmingClean = false
     }
 
     private func panelOpened() {
@@ -198,7 +287,7 @@ final class Store: ObservableObject {
         guard busy == nil else { return }
         if Janitor.isRunning() {
             watchScheduledRun()
-        } else if !showSettings, previewIsStale || previewPredatesRun
+        } else if previewIsStale || previewPredatesRun
                     || preview.map({ -$0.finishedAt.timeIntervalSinceNow > Self.previewMaxAge }) ?? true {
             Task { await runPreview() }
         }
@@ -228,10 +317,17 @@ final class Store: ObservableObject {
         previewID += 1
         let id = previewID
         let cfg = config
-        let outcome = await JanitorRunner.run(dryRun: true)
+        scan = ScanState()
+        let outcome = await JanitorRunner.run(dryRun: true) { [weak self] event in
+            Task { @MainActor in
+                guard let self, id == self.previewID else { return }
+                self.scan?.apply(event)
+            }
+        }
         // A clean started meanwhile; this plan predates it.
         guard id == previewID else { return }
         busy = nil
+        scan = nil
         refresh()
         if Janitor.isRunning() { return watchScheduledRun() }
         problem = outcome.problem
@@ -250,6 +346,8 @@ final class Store: ObservableObject {
         let ids = planned.map(\.id)
         guard live, canClean else { return }
         previewID += 1
+        confirmingClean = false
+        scan = nil
         busy = .cleaning
         problem = nil
         let outcome = await JanitorRunner.run(dryRun: false, only: ids)
@@ -301,9 +399,8 @@ final class Store: ObservableObject {
     }
 
     /// Applies config changes made in settings to the preview.
-    func closeSettings() {
-        showSettings = false
-        if previewIsStale { Task { await runPreview() } }
+    func settingsClosed() {
+        if previewIsStale, panelOpen { Task { await runPreview() } }
     }
 
     func setEnabled(_ c: JanitorCore.Category, _ on: Bool) {
@@ -324,7 +421,7 @@ final class Store: ObservableObject {
             let entries = cfg.keepEntries(for: target)
             cfg.keep.removeAll { entries.contains($0) }
         }
-        if !showSettings, previewIsStale { Task { await runPreview() } }
+        if panelOpen, previewIsStale { Task { await runPreview() } }
     }
 
     func setLaunchAtLogin(_ on: Bool) {
@@ -335,6 +432,26 @@ final class Store: ObservableObject {
             problem = "Launch at login: \(error.localizedDescription)"
         }
         loginStatus = SMAppService.mainApp.status
+    }
+
+    /// Turns scheduled runs on (registering the background job) or off (pausing them).
+    func setAutomatic(_ on: Bool) {
+        problem = nil
+        defer { agentStatus = Background.status }
+        if on {
+            do {
+                try Background.enable()
+            } catch {
+                problem = "Could not turn on automatic cleaning: \(error.localizedDescription)"
+                return
+            }
+        }
+        update { $0.paused = !on }
+    }
+
+    func reveal(_ target: String) {
+        guard target.hasPrefix("/") else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: target)])
     }
 
     func openLog() {

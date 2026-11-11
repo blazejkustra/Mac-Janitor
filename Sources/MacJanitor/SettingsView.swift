@@ -7,187 +7,218 @@ struct SettingsView: View {
     @EnvironmentObject private var store: Store
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 4) {
-                Button { store.closeSettings() } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
-                }
-                .buttonStyle(.borderless)
-                .help("Back")
-                Text("Settings").font(.headline)
-                Spacer()
-            }
-            .padding(.bottom, 6)
-
+        VStack(spacing: 0) {
             if let problem = store.problem {
                 ProblemBanner(text: problem) { store.problem = nil }
-                    .padding(.vertical, 4)
+                    .padding([.horizontal, .top], 16)
             }
-
-            SettingsSection("Schedule") {
-                StepperRow(symbol: "clock", label: "Every", value: store.binding(\.intervalHours),
-                           range: 1...48, unit: "h")
-                StepperRow(symbol: "internaldrive", label: "Run early below", value: store.binding(\.lowDiskGB),
-                           range: 5...200, step: 5, unit: " GB")
-            }
-
-            SettingsSection("Remove after") {
-                StepperRow(symbol: JanitorCore.Category.nodeModules.symbol, label: "node_modules idle",
-                           value: store.binding(\.nodeModulesIdleDays))
-                StepperRow(symbol: JanitorCore.Category.worktree.symbol, label: "Merged worktree",
-                           value: store.binding(\.mergedIdleDays), range: 0...365)
-                StepperRow(symbol: JanitorCore.Category.worktree.symbol, label: "Worktree with open PR",
-                           value: store.binding(\.openPRIdleDays))
-                StepperRow(symbol: JanitorCore.Category.worktree.symbol, label: "Abandoned worktree",
-                           value: store.binding(\.abandonedIdleDays))
-                StepperRow(symbol: JanitorCore.Category.dockerImage.symbol, label: "Docker image unused",
-                           value: store.binding(\.dockerImageUnusedDays))
-                StepperRow(symbol: JanitorCore.Category.avd.symbol, label: "Emulator unused",
-                           value: store.binding(\.avdUnusedDays))
-                StepperRow(symbol: JanitorCore.Category.scratchpad.symbol, label: "Scratchpad idle",
-                           value: store.binding(\.scratchpadIdleDays))
-                StepperRow(symbol: JanitorCore.Category.build.symbol, label: "Project idle",
-                           value: store.binding(\.buildIdleDays))
-                StepperRow(symbol: JanitorCore.Category.cache.symbol, label: "Cache unused",
-                           value: store.binding(\.cacheIdleDays))
-                StepperRow(symbol: JanitorCore.Category.trash.symbol, label: "In the Trash",
-                           value: store.binding(\.trashIdleDays))
-                StepperRow(symbol: JanitorCore.Category.largeFile.symbol, label: "Large file untouched",
-                           value: store.binding(\.largeFileIdleDays))
-                StepperRow(symbol: JanitorCore.Category.largeFile.symbol, label: "Large file over",
-                           value: store.binding(\.largeFileMinGB), range: 0.5...100, step: 0.5, unit: " GB")
-            }
-
-            if !store.config.keep.isEmpty {
-                SettingsSection("Kept") {
-                    ForEach(store.config.keep, id: \.self) { target in
-                        ListRow(symbol: "pin.fill", text: (target as NSString).lastPathComponent, help: target) {
-                            store.update { $0.keep.removeAll { $0 == target } }
-                        }
-                    }
+            Form {
+                AutomaticSection()
+                PermissionsSection()
+                Section {
+                    ForEach(JanitorCore.Category.allCases, id: \.self) { CategorySettings(category: $0) }
+                } header: {
+                    Text("What to clean")
+                } footer: {
+                    Text("Turned-off categories are not checked or cleaned. Everything is shown before a manual clean.")
                 }
+                KeptSection()
+                GeneralSection()
             }
-
-            Divider().padding(.vertical, 8)
-
-            LoginRow()
-            HStack {
-                Button { store.openLog() } label: { Label("Log", systemImage: "doc.text") }
-                Spacer()
-                Button { NSApp.terminate(nil) } label: { Label("Quit", systemImage: "power") }
-            }
-            .controlSize(.small)
-            .padding(.top, 8)
+            .formStyle(.grouped)
         }
-        .padding(Metrics.inset)
+        .frame(width: 520, height: 640)
     }
 }
 
-private struct SettingsSection<Content: View>: View {
-    let title: String
-    @ViewBuilder let content: Content
-
-    init(_ title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .frame(height: 18)
-            .padding(.top, 10)
-            .padding(.bottom, 2)
-            content
-        }
-    }
-}
-
-private struct StepperRow: View {
-    let symbol: String
-    let label: String
-    let value: Binding<Double>
-    var range: ClosedRange<Double> = 1...365
-    var step: Double = 1
-    var unit = "d"
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .foregroundStyle(.secondary)
-                .frame(width: Metrics.icon)
-            Text(label)
-            Spacer(minLength: 4)
-            Text(Format.number(value.wrappedValue) + unit)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-            Stepper(label, value: value, in: range, step: step)
-                .labelsHidden()
-                .controlSize(.small)
-        }
-        .font(.callout)
-        .frame(height: 24)
-    }
-}
-
-private struct ListRow: View {
-    let symbol: String
-    let text: String
-    let help: String
-    let remove: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: symbol)
-                .foregroundStyle(.secondary)
-                .frame(width: Metrics.icon)
-            Text(text)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .help(help)
-            Spacer(minLength: 4)
-            Button(action: remove) { Image(systemName: "minus.circle") }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .help("Remove")
-        }
-        .font(.callout)
-        .frame(height: 24)
-    }
-}
-
-private struct LoginRow: View {
+private struct AutomaticSection: View {
     @EnvironmentObject private var store: Store
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "power.circle")
-                .foregroundStyle(.secondary)
-                .frame(width: Metrics.icon)
-            Text("Open at login")
-            if store.loginStatus == .requiresApproval {
-                Button { SMAppService.openSystemSettingsLoginItems() } label: {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                }
-                .buttonStyle(.borderless)
-                .help("Needs approval in Login Items; click to open")
+        Section {
+            Toggle(isOn: Binding(get: { store.automatic }, set: { store.setAutomatic($0) })) {
+                Text("Clean automatically")
+                Text(store.automatic ? "Runs in the background, even with the menu closed." : "Off. Nothing is removed unless you click Clean.")
             }
+            .pointingCursor()
+            Picker("How often", selection: store.binding(\.intervalHours)) {
+                ForEach(ScheduleChoice.all, id: \.hours) { Text($0.title).tag($0.hours) }
+                if !ScheduleChoice.all.contains(where: { $0.hours == store.config.intervalHours }) {
+                    Text("Every \(Format.number(store.config.intervalHours)) hours").tag(store.config.intervalHours)
+                }
+            }
+            .disabled(!store.automatic)
+            ValueStepper(title: "Clean early when free space is below", value: store.binding(\.lowDiskGB),
+                         range: 5...200, step: 5, unit: "GB")
+                .disabled(!store.automatic)
+            if store.agentStatus == .requiresApproval {
+                HStack {
+                    Label("macOS needs your OK to run Mac Janitor in the background.", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }
+                        .pointingCursor()
+                }
+            }
+        } header: {
+            Text("Automatic cleaning")
+        }
+    }
+}
+
+private struct PermissionsSection: View {
+    @EnvironmentObject private var store: Store
+
+    var body: some View {
+        Section {
+            HStack {
+                Image(systemName: store.fullDiskAccess ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                    .foregroundStyle(store.fullDiskAccess ? .green : .orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Full Disk Access")
+                    Text(store.fullDiskAccess ? "Granted" : "Off: Desktop, Documents, Downloads and the Trash are skipped")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if !store.fullDiskAccess {
+                    Button("Set up…") { Windows.shared.showOnboarding(step: .access) }
+                        .pointingCursor()
+                }
+            }
+        } header: {
+            Text("Permissions")
+        }
+        .task { await store.refreshAccess() }
+    }
+}
+
+/// A category's switch, what it means, and the age at which things go.
+private struct CategorySettings: View {
+    @EnvironmentObject private var store: Store
+    let category: JanitorCore.Category
+
+    var body: some View {
+        let enabled = store.config.enabled(category)
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(isOn: Binding(get: { enabled }, set: { store.setEnabled(category, $0) })) {
+                Label(category.title, systemImage: category.symbol)
+            }
+            .pointingCursor()
+            Text(category.explanation(store.config))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if enabled {
+                ForEach(Threshold.all(for: category), id: \.title) { t in
+                    ValueStepper(title: t.title, value: store.binding(t.key), range: t.range, step: t.step, unit: t.unit)
+                        .padding(.leading, 28)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct Threshold {
+    let title: String
+    let key: WritableKeyPath<Config, Double>
+    var range: ClosedRange<Double> = 1...365
+    var step: Double = 1
+    var unit = "days"
+
+    static func all(for c: JanitorCore.Category) -> [Threshold] {
+        switch c {
+        case .worktree:
+            return [Threshold(title: "Merged, then idle for", key: \.mergedIdleDays, range: 0...365),
+                    Threshold(title: "Pull request open, idle for", key: \.openPRIdleDays),
+                    Threshold(title: "Any worktree idle for", key: \.abandonedIdleDays)]
+        case .nodeModules: return [Threshold(title: "Worktree idle for", key: \.nodeModulesIdleDays)]
+        case .dockerImage: return [Threshold(title: "Unused for", key: \.dockerImageUnusedDays)]
+        case .avd: return [Threshold(title: "Unused for", key: \.avdUnusedDays)]
+        case .scratchpad: return [Threshold(title: "Untouched for", key: \.scratchpadIdleDays)]
+        case .build: return [Threshold(title: "Project unchanged for", key: \.buildIdleDays)]
+        case .cache: return [Threshold(title: "Unused for", key: \.cacheIdleDays)]
+        case .trash: return [Threshold(title: "In the Trash for", key: \.trashIdleDays)]
+        case .largeFile:
+            return [Threshold(title: "Bigger than", key: \.largeFileMinGB, range: 0.5...100, step: 0.5, unit: "GB"),
+                    Threshold(title: "Unopened for", key: \.largeFileIdleDays)]
+        }
+    }
+}
+
+private struct ValueStepper: View {
+    let title: String
+    let value: Binding<Double>
+    let range: ClosedRange<Double>
+    var step: Double = 1
+    var unit = "days"
+
+    var body: some View {
+        HStack {
+            Text(title)
             Spacer()
-            Toggle("Open at login", isOn: Binding(
-                get: { store.loginStatus == .enabled || store.loginStatus == .requiresApproval },
-                set: { store.setLaunchAtLogin($0) }
-            ))
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .labelsHidden()
+            Text("\(Format.number(value.wrappedValue)) \(value.wrappedValue == 1 && unit == "days" ? "day" : unit)")
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+            Stepper(title, value: value, in: range, step: step)
+                .labelsHidden()
+                .pointingCursor()
         }
         .font(.callout)
-        .frame(height: 24)
+    }
+}
+
+private struct KeptSection: View {
+    @EnvironmentObject private var store: Store
+
+    var body: some View {
+        Section {
+            if store.config.keep.isEmpty {
+                Text("Nothing yet. Use the pin next to an item in the menu to keep it.")
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(store.config.keep, id: \.self) { target in
+                HStack {
+                    Image(systemName: "pin.fill").foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text((target as NSString).lastPathComponent).lineLimit(1)
+                        Text(Format.path(target))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer()
+                    Button("Stop keeping") { store.update { $0.keep.removeAll { $0 == target } } }
+                        .pointingCursor()
+                }
+            }
+        } header: {
+            Text("Kept items")
+        }
+    }
+}
+
+private struct GeneralSection: View {
+    @EnvironmentObject private var store: Store
+
+    var body: some View {
+        Section {
+            Toggle("Open Mac Janitor at login", isOn: Binding(get: { store.loginStatus.isOn }, set: { store.setLaunchAtLogin($0) }))
+                .pointingCursor()
+            HStack {
+                Button("Show setup guide") { Windows.shared.showOnboarding() }
+                    .pointingCursor()
+                Button("Open activity log") { store.openLog() }
+                    .pointingCursor()
+                Spacer()
+                Button("Quit Mac Janitor") { NSApp.terminate(nil) }
+                    .pointingCursor()
+            }
+        } header: {
+            Text("General")
+        }
     }
 }
 

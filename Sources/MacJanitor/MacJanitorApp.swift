@@ -3,7 +3,13 @@ import SwiftUI
 
 struct MacJanitorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @StateObject private var store = Store.live()
+    @StateObject private var store: Store
+
+    init() {
+        let store = Store.live()
+        Windows.shared.store = store
+        _store = StateObject(wrappedValue: store)
+    }
 
     var body: some Scene {
         MenuBarExtra {
@@ -19,7 +25,7 @@ private struct MenuBarLabel: View {
     @ObservedObject var store: Store
 
     var body: some View {
-        if store.busy != nil {
+        if store.busy == .cleaning || store.busy == .scheduled {
             Image(systemName: "hourglass")
         } else if store.isLowDisk {
             // Menu-bar images render as templates; a non-template image keeps its red.
@@ -42,5 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // No Dock icon, even when run as a bare binary without the bundle's LSUIElement.
         NSApp.setActivationPolicy(.accessory)
+        #if DEBUG
+        MainActor.assumeIsolated { DebugCapture.install() }
+        #endif
+        guard !Windows.setupDone else { return }
+        MainActor.assumeIsolated { Windows.shared.showOnboarding() }
     }
 }

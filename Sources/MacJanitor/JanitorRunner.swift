@@ -1,7 +1,7 @@
 import Foundation
 import JanitorCore
 
-/// Runs the bundled `janitor` CLI as a child process and decodes the Report it prints.
+/// Runs this app's own executable headless (`MacJanitor run ...`) and decodes the Report it prints.
 enum JanitorRunner {
     struct Outcome {
         var report: Report?
@@ -11,22 +11,18 @@ enum JanitorRunner {
         var locked = false
     }
 
-    /// `Contents/MacOS/janitor` inside the bundle; beside the binary under `.build` too.
-    static var executable: URL {
-        Bundle.main.executableURL!.deletingLastPathComponent().appendingPathComponent("janitor")
+    static var executable: URL { Bundle.main.executableURL! }
+
+    /// With `only`, a real run acts on just those action ids. `onEvent` gets the run's
+    /// progress, on a background thread.
+    static func run(dryRun: Bool, only: [String]? = nil,
+                    onEvent: @escaping @Sendable (ScanEvent) -> Void = { _ in }) async -> Outcome {
+        await Task.detached(priority: .userInitiated) { runBlocking(dryRun: dryRun, only: only, onEvent: onEvent) }.value
     }
 
-    /// With `only`, a real run acts on just those action ids.
-    static func run(dryRun: Bool, only: [String]? = nil) async -> Outcome {
-        await Task.detached(priority: .userInitiated) { runBlocking(dryRun: dryRun, only: only) }.value
-    }
-
-    private static func runBlocking(dryRun: Bool, only: [String]?) -> Outcome {
+    private static func runBlocking(dryRun: Bool, only: [String]?, onEvent: @escaping (ScanEvent) -> Void) -> Outcome {
         let exe = executable
-        guard FileManager.default.isExecutableFile(atPath: exe.path) else {
-            return Outcome(problem: "janitor not found at \(Format.path(exe.path))")
-        }
-        var arguments = ["run", "--json"] + (dryRun ? ["--dry-run"] : [])
+        var arguments = ["run", "--json", "--progress"] + (dryRun ? ["--dry-run"] : [])
         var onlyFile: URL?
         defer { onlyFile.map { try? FileManager.default.removeItem(at: $0) } }
         if let only {
@@ -40,10 +36,10 @@ enum JanitorRunner {
             onlyFile = file
             arguments += ["--only", file.path]
         }
-        return launch(exe, arguments)
+        return launch(exe, arguments, onEvent: onEvent)
     }
 
-    private static func launch(_ exe: URL, _ arguments: [String]) -> Outcome {
+    private static func launch(_ exe: URL, _ arguments: [String], onEvent: @escaping (ScanEvent) -> Void) -> Outcome {
         let process = Process()
         process.executableURL = exe
         process.arguments = arguments
@@ -61,7 +57,7 @@ enum JanitorRunner {
         var errData = Data()
         let stderrDone = DispatchSemaphore(value: 0)
         DispatchQueue.global().async {
-            errData = err.fileHandleForReading.readDataToEndOfFile()
+            errData = readEvents(from: err.fileHandleForReading, onEvent: onEvent)
             stderrDone.signal()
         }
         let outData = out.fileHandleForReading.readDataToEndOfFile()
@@ -87,5 +83,30 @@ enum JanitorRunner {
             return Outcome(problem: "janitor printed no readable report" + (stderr.isEmpty ? "" : ": " + stderr))
         }
         return Outcome(report: report)
+    }
+
+    /// Hands progress lines to `onEvent` as they arrive and returns everything else.
+    private static func readEvents(from handle: FileHandle, onEvent: (ScanEvent) -> Void) -> Data {
+        var pending = Data()
+        var other = Data()
+        func consume(_ line: Data) {
+            if let event = ScanEvent.parse(Substring(decoding: line, as: UTF8.self)) {
+                onEvent(event)
+            } else {
+                other.append(line)
+                other.append(0x0A)
+            }
+        }
+        var chunk = handle.availableData
+        while !chunk.isEmpty {
+            pending.append(chunk)
+            while let newline = pending.firstIndex(of: 0x0A) {
+                consume(pending[pending.startIndex..<newline])
+                pending.removeSubrange(pending.startIndex...newline)
+            }
+            chunk = handle.availableData
+        }
+        if !pending.isEmpty { consume(pending) }
+        return other
     }
 }
