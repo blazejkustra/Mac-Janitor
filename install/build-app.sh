@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-BUNDLE_ID="${MACJANITOR_BUNDLE_ID:-com.ignacy.mac-janitor.applet}"
+BUNDLE_ID="${MACJANITOR_BUNDLE_ID:-com.blazejkustra.macjanitor}"
 APP="build/Mac Janitor.app"
 
 echo "Building release..."

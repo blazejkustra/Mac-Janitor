@@ -21,14 +21,12 @@ extension ItemLabel {
         switch category {
         case .worktree:
             let place = Checkout.locate(target, isCheckout: { $0 == target || isCheckout($0) })
-            return ItemLabel(title: place.project, context: place.worktree.map { ["worktree \($0)"] } ?? ["copy \(shorten(last(target)))"])
+            return ItemLabel(title: place.title, context: [place.worktree == nil ? "copy of the project" : "worktree"])
         case .nodeModules, .build:
             let place = Checkout.locate(parent(target), isCheckout: isCheckout)
-            var context = place.worktree.map { ["worktree \($0)"] } ?? []
             var inside = place.root.map { relative(target, to: $0) } ?? last(target)
             if category == .nodeModules { inside = inside == "node_modules" ? "" : parent(inside) }
-            if !inside.isEmpty { context.append(inside) }
-            return ItemLabel(title: place.project, context: context)
+            return ItemLabel(title: place.title, context: inside.isEmpty ? [] : [inside])
         case .cache:
             let root = parent(target)
             return ItemLabel(title: shorten(last(target)), context: [cacheRootName(root, home: home)])
@@ -55,6 +53,9 @@ extension ItemLabel {
         var root: String?
         var project: String
         var worktree: String?
+
+        /// "uncut · agent-a578b4" for a worktree, the project name otherwise.
+        var title: String { worktree.map { "\(project) · \($0)" } ?? project }
 
         static func locate(_ path: String, isCheckout: (String) -> Bool) -> Checkout {
             if let root = conventionalWorktree(in: path) {

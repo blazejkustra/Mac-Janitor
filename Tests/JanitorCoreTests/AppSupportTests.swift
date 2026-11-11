@@ -10,20 +10,20 @@ final class ItemLabelTests: XCTestCase {
 
     func testClaudeWorktreeNodeModulesNameTheRepoAndWorktree() {
         let l = label("/Users/me/Developer/uncut/.claude/worktrees/agent-a578b48dc68f31141/node_modules", .nodeModules)
-        XCTAssertEqual(l, ItemLabel(title: "uncut", context: ["worktree agent-a578b4"]))
+        XCTAssertEqual(l, ItemLabel(title: "uncut · agent-a578b4"))
     }
 
     func testSameFolderNameInTwoWorktreesStaysDistinct() {
         let a = label("/Users/me/Developer/argent/.claude/worktrees/agent-a7b1251c0208dde89/packages/tool-server/node_modules", .nodeModules)
         let b = label("/Users/me/.t3/worktrees/argent/t3-a6c8cef2/packages/tool-server/node_modules", .nodeModules)
-        XCTAssertEqual(a, ItemLabel(title: "argent", context: ["worktree agent-a7b125", "packages/tool-server"]))
-        XCTAssertEqual(b, ItemLabel(title: "argent", context: ["worktree t3-a6c8cef2", "packages/tool-server"]))
-        XCTAssertNotEqual(a.contextLine, b.contextLine)
+        XCTAssertEqual(a, ItemLabel(title: "argent · agent-a7b125", context: ["packages/tool-server"]))
+        XCTAssertEqual(b, ItemLabel(title: "argent · t3-a6c8cef2", context: ["packages/tool-server"]))
+        XCTAssertNotEqual(a.title, b.title)
     }
 
     func testSiblingWorktreesFolder() {
         let l = label("/Users/me/dev/app-worktrees/fix-login", .worktree)
-        XCTAssertEqual(l, ItemLabel(title: "app", context: ["worktree fix-login"]))
+        XCTAssertEqual(l, ItemLabel(title: "app · fix-login", context: ["worktree"]))
     }
 
     func testPlainCheckoutFoundByGit() {

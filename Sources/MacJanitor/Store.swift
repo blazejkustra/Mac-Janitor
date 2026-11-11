@@ -158,6 +158,12 @@ final class Store: ObservableObject {
     /// Categories the user has turned on, in display order.
     var enabledCategories: [JanitorCore.Category] { JanitorCore.Category.allCases.filter(config.enabled) }
 
+    /// How far the running preview is, by categories finished.
+    var scanProgress: Double {
+        guard let scan, !enabledCategories.isEmpty else { return 0 }
+        return Double(scan.done.intersection(enabledCategories).count) / Double(enabledCategories.count)
+    }
+
     /// A clean or preview has nothing to show for any category yet.
     var isFirstScan: Bool { preview == nil && busy == .previewing }
 

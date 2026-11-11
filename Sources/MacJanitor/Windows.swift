@@ -40,7 +40,10 @@ final class Windows: NSObject, NSWindowDelegate {
     private func makeWindow<V: View>(title: String, view: V) -> NSWindow {
         let window = NSWindow(contentViewController: NSHostingController(rootView: view))
         window.title = title
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()

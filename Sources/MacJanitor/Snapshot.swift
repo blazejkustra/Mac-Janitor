@@ -171,6 +171,12 @@ enum Snapshot {
                             problem: "lsof failed, so nothing in use can be told apart"))
             }),
             ("g-settings", { window(SettingsView(), normal) }),
+            ("g-settings-categories", { window(SettingsView(page: .categories), normal) }),
+            ("g-settings-kept", {
+                var cfg = Config()
+                cfg.keep = ["\(home)/Developer/uncut/.claude/worktrees/factory-gates", "\(home)/Movies/Final Cut", "Pixel_9_API_36"]
+                return window(SettingsView(page: .kept), Store(config: cfg, freeBytes: 124 * gb, totalBytes: total))
+            }),
             ("h-onboarding-welcome", { onboarding(.welcome, normal) }),
             ("i-onboarding-access", {
                 onboarding(.access, Store(freeBytes: 124 * gb, totalBytes: total, fullDiskAccess: false))
