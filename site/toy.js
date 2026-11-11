@@ -46,9 +46,9 @@ const TINTS = {
 };
 
 const MILESTONES = [
-  { gb: 10, text: '10 GB back. That is a whole Xcode.' },
-  { gb: 25, text: '25 GB. Your agents have been busy.' },
-  { gb: 50, text: '50 GB freed. Your SSD can breathe again.' },
+  { gb: 10, text: '10 GB. A whole Xcode.' },
+  { gb: 25, text: '25 GB. Busy agents.' },
+  { gb: 50, text: '50 GB. Your SSD breathes.' },
   { gb: 100, text: '100 GB. Fine, you win.' },
 ];
 
@@ -458,6 +458,7 @@ class JanitorToy {
     this.frame = this.frame.bind(this);
     this.measure();
     this.setHint(this.startHint());
+    document.fonts?.ready.then(() => this.reserveHintWidth());
     this.bindPointer();
     this.bindLifecycle();
     this.seed();
@@ -469,7 +470,27 @@ class JanitorToy {
     return this.root.dataset.hint || 'Hover a folder to clean it up.';
   }
 
+  allHints() {
+    const data = this.root.dataset;
+    const hints = [data.hint, data.hintTouch, data.hintClick, data.hintAfter, data.hintKept];
+    return [...hints, ...MILESTONES.map((m) => m.text)].filter(Boolean);
+  }
+
+  reserveHintWidth() {
+    if (!this.hintEl) return;
+    const probe = this.hintEl.cloneNode(false);
+    probe.style.cssText = 'position: absolute; visibility: hidden; width: auto; max-width: none;';
+    this.hintEl.after(probe);
+    const widths = this.allHints().map((text) => {
+      probe.textContent = text;
+      return probe.getBoundingClientRect().width;
+    });
+    probe.remove();
+    this.hintEl.style.width = `${Math.ceil(Math.max(...widths))}px`;
+  }
+
   measure() {
+    this.reserveHintWidth();
     const rect = this.root.getBoundingClientRect();
     this.width = rect.width;
     this.height = rect.height;
