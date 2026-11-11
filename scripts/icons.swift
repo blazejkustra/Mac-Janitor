@@ -1,5 +1,5 @@
-// Draws the menu-bar glyph candidates and writes the one the app ships.
-// Usage: swift scripts/icons.swift menubar <out-dir>
+// Draws the menu-bar glyph and app icon candidates and writes the ones the app ships.
+// Usage: swift scripts/icons.swift menubar|logos|appicon <out-dir>
 import AppKit
 
 // MARK: - Glyphs
@@ -87,6 +87,7 @@ func bitmap(_ pixels: CGSize, scale: CGFloat, _ draw: (CGContext) -> Void) -> NS
     NSGraphicsContext.saveGraphicsState()
     let context = NSGraphicsContext(bitmapImageRep: rep)!
     NSGraphicsContext.current = context
+    context.cgContext.clear(CGRect(origin: .zero, size: pixels))
     context.cgContext.scaleBy(x: scale, y: scale)
     draw(context.cgContext)
     NSGraphicsContext.restoreGraphicsState()
@@ -172,11 +173,194 @@ func menubarSheet(_ url: URL) {
     writePNG(rep, url)
 }
 
+// MARK: - App icon
+
+/// One app icon direction: a palette and a foreground drawn on a 1024 canvas.
+struct Logo {
+    let name: String
+    let top: NSColor
+    let bottom: NSColor
+    let echo: NSColor
+    let ink: NSColor
+    /// `front` is the cream layer, which carries the detail the echo behind it leaves out.
+    let draw: (CGContext, _ fill: NSColor, _ front: Bool) -> Void
+}
+
+func hex(_ value: UInt32, _ alpha: CGFloat = 1) -> NSColor {
+    NSColor(srgbRed: CGFloat((value >> 16) & 0xff) / 255, green: CGFloat((value >> 8) & 0xff) / 255,
+            blue: CGFloat(value & 0xff) / 255, alpha: alpha)
+}
+
+let cream = hex(0xF4EEDF)
+
+/// The glyph's geometry at icon scale, centred in the 1024 canvas.
+func glyphSpace(_ ctx: CGContext, scale: CGFloat = 36, offset: CGPoint = CGPoint(x: 188, y: 182)) {
+    ctx.translateBy(x: offset.x, y: offset.y)
+    ctx.scaleBy(x: scale, y: scale)
+}
+
+let broomLogo = Logo(name: "Broom", top: hex(0x24584E), bottom: hex(0x0A1F1B), echo: hex(0x46D6A6), ink: cream) { ctx, fill, front in
+    glyphSpace(ctx, scale: 34, offset: CGPoint(x: 214, y: 214))
+    ctx.setFillColor(fill.cgColor)
+    ctx.setStrokeColor(fill.cgColor)
+    broom.draw(ctx)
+    guard front else { return }
+    ctx.setStrokeColor(hex(0x24584E, 0.28).cgColor)
+    for t in [0.2, 0.4, 0.6, 0.8] as [CGFloat] {
+        let top = CGPoint(x: 5.0 + (10.3 - 5.0) * t, y: 8.6 + (4.7 - 8.6) * t)
+        let bottom = CGPoint(x: 0.6 + (8.6 - 0.6) * t, y: 5.6 + (0.6 - 5.6) * t)
+        strokeLine(ctx, CGPoint(x: top.x - (top.x - bottom.x) * 0.15, y: top.y - (top.y - bottom.y) * 0.15),
+                   CGPoint(x: bottom.x + (top.x - bottom.x) * 0.12, y: bottom.y + (top.y - bottom.y) * 0.12), width: 0.22)
+    }
+    ctx.setFillColor(hex(0x46D6A6).cgColor)
+    let collar = CGMutablePath()
+    collar.move(to: CGPoint(x: 6.9, y: 11.0))
+    collar.addLine(to: CGPoint(x: 11.9, y: 7.0))
+    collar.addLine(to: CGPoint(x: 11.5, y: 6.45))
+    collar.addLine(to: CGPoint(x: 6.4, y: 10.3))
+    collar.closeSubpath()
+    ctx.addPath(collar)
+    ctx.fillPath()
+}
+
+let diskLogo = Logo(name: "Swept disk", top: hex(0x30347A), bottom: hex(0x0D0F2B), echo: hex(0x8C95FF), ink: cream) { ctx, fill, _ in
+    glyphSpace(ctx, scale: 33, offset: CGPoint(x: 232, y: 232))
+    ctx.setFillColor(fill.cgColor)
+    ctx.setStrokeColor(fill.cgColor)
+    sweptDisk.draw(ctx)
+}
+
+let driveLogo = Logo(name: "Emptying drive", top: hex(0x34343A), bottom: hex(0x121214), echo: hex(0xF4B740), ink: cream) { ctx, fill, _ in
+    glyphSpace(ctx, scale: 34, offset: CGPoint(x: 204, y: 206))
+    ctx.setFillColor(fill.cgColor)
+    ctx.setStrokeColor(fill.cgColor)
+    emptyingDrive.draw(ctx)
+}
+
+let logos = [broomLogo, diskLogo, driveLogo]
+let shippedLogo = broomLogo
+
+/// Shadows ignore the transform, so they are scaled to match it by hand.
+func setShadow(_ ctx: CGContext, dy: CGFloat, blur: CGFloat, alpha: CGFloat) {
+    let scale = ctx.ctm.a
+    ctx.setShadow(offset: CGSize(width: 0, height: dy * scale), blur: blur * scale, color: NSColor(white: 0, alpha: alpha).cgColor)
+}
+
+/// The macOS icon plate: an 824 pt rounded square with a drop shadow, a vertical gradient and a lit top edge.
+func drawPlate(_ logo: Logo, _ ctx: CGContext) {
+    let plate = CGRect(x: 100, y: 100, width: 824, height: 824)
+    let shape = CGPath(roundedRect: plate, cornerWidth: 186, cornerHeight: 186, transform: nil)
+    ctx.saveGState()
+    setShadow(ctx, dy: -12, blur: 28, alpha: 0.35)
+    ctx.addPath(shape)
+    ctx.setFillColor(logo.bottom.cgColor)
+    ctx.fillPath()
+    ctx.restoreGState()
+
+    ctx.saveGState()
+    ctx.addPath(shape)
+    ctx.clip()
+    let gradient = CGGradient(colorsSpace: nil, colors: [logo.top.cgColor, logo.bottom.cgColor] as CFArray, locations: [0, 0.85])!
+    ctx.drawLinearGradient(gradient, start: CGPoint(x: 0, y: plate.maxY), end: CGPoint(x: 0, y: plate.minY), options: [])
+    let glow = CGGradient(colorsSpace: nil, colors: [logo.echo.withAlphaComponent(0.22).cgColor, logo.echo.withAlphaComponent(0).cgColor] as CFArray,
+                          locations: [0, 1])!
+    ctx.drawRadialGradient(glow, startCenter: CGPoint(x: 380, y: 360), startRadius: 0, endCenter: CGPoint(x: 380, y: 360),
+                           endRadius: 520, options: [])
+    let sheen = CGGradient(colorsSpace: nil, colors: [NSColor(white: 1, alpha: 0.16).cgColor, NSColor(white: 1, alpha: 0).cgColor] as CFArray,
+                           locations: [0, 1])!
+    ctx.drawLinearGradient(sheen, start: CGPoint(x: 0, y: plate.maxY), end: CGPoint(x: 0, y: plate.maxY - 140), options: [])
+    ctx.restoreGState()
+
+    ctx.saveGState()
+    ctx.addPath(CGPath(roundedRect: plate.insetBy(dx: 1.5, dy: 1.5), cornerWidth: 185, cornerHeight: 185, transform: nil))
+    ctx.setStrokeColor(NSColor(white: 1, alpha: 0.12).cgColor)
+    ctx.setLineWidth(3)
+    ctx.strokePath()
+    ctx.restoreGState()
+}
+
+/// Foreground in three layers: a coloured echo set back and down, a soft shadow, and the cream glyph.
+func drawForeground(_ logo: Logo, _ ctx: CGContext) {
+    func layer(dx: CGFloat, dy: CGFloat, color: NSColor, front: Bool) {
+        ctx.saveGState()
+        if front {
+            setShadow(ctx, dy: -10, blur: 22, alpha: 0.45)
+        }
+        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+        ctx.translateBy(x: dx, y: dy)
+        logo.draw(ctx, color, front)
+        ctx.endTransparencyLayer()
+        ctx.restoreGState()
+    }
+    layer(dx: -26, dy: -26, color: logo.echo.withAlphaComponent(0.75), front: false)
+    layer(dx: 0, dy: 0, color: logo.ink, front: true)
+}
+
+func drawLogo(_ logo: Logo, _ ctx: CGContext) {
+    drawPlate(logo, ctx)
+    drawForeground(logo, ctx)
+}
+
+func logoBitmap(_ logo: Logo, pixels: Int) -> NSBitmapImageRep {
+    bitmap(CGSize(width: pixels, height: pixels), scale: CGFloat(pixels) / 1024) { drawLogo(logo, $0) }
+}
+
+/// All directions side by side at 1024 pt scaled down, each with 64, 32 and 16 px renders under it.
+func logoSheet(_ url: URL) {
+    let width: CGFloat = 1500, height: CGFloat = 760
+    let previews = logos.map { logo in [64, 32, 16].map { logoBitmap(logo, pixels: $0) } }
+    let rep = bitmap(CGSize(width: width, height: height), scale: 1) { ctx in
+        hex(0x18181B).setFill()
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        drawText("App icon directions", at: CGPoint(x: 60, y: height - 80), size: 30, color: .white, weight: .semibold)
+        for (i, logo) in logos.enumerated() {
+            let x = 60 + CGFloat(i) * 480
+            ctx.saveGState()
+            ctx.translateBy(x: x - 20, y: 180)
+            ctx.scaleBy(x: 440 / 1024, y: 440 / 1024)
+            drawLogo(logo, ctx)
+            ctx.restoreGState()
+            let label = "\(i + 1). \(logo.name)" + (logo.name == shippedLogo.name ? "  (shipped)" : "")
+            drawText(label, at: CGPoint(x: x, y: 640), size: 20, color: .white, weight: .medium)
+            var sx = x
+            for preview in previews[i] {
+                let px = CGFloat(preview.pixelsWide)
+                let image = NSImage(size: NSSize(width: px, height: px))
+                image.addRepresentation(preview)
+                image.draw(in: NSRect(x: sx, y: 90, width: px, height: px), from: .zero, operation: .sourceOver, fraction: 1)
+                sx += px + 24
+            }
+            drawText("64, 32 and 16 px", at: CGPoint(x: x, y: 50), size: 14, color: NSColor(white: 1, alpha: 0.5))
+        }
+    }
+    writePNG(rep, url)
+}
+
+/// An .icns from the shipped direction, through an iconset and iconutil.
+func writeAppIcon(_ dir: URL) {
+    let iconset = dir.appendingPathComponent("AppIcon.iconset")
+    try? FileManager.default.removeItem(at: iconset)
+    try! FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
+    for points in [16, 32, 128, 256, 512] {
+        for scale in [1, 2] {
+            let name = scale == 1 ? "icon_\(points)x\(points).png" : "icon_\(points)x\(points)@2x.png"
+            writePNG(logoBitmap(shippedLogo, pixels: points * scale), iconset.appendingPathComponent(name))
+        }
+    }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+    process.arguments = ["-c", "icns", iconset.path, "-o", dir.appendingPathComponent("AppIcon.icns").path]
+    try! process.run()
+    process.waitUntilExit()
+    try? FileManager.default.removeItem(at: iconset)
+    print(dir.appendingPathComponent("AppIcon.icns").path)
+}
+
 // MARK: - Main
 
 let args = CommandLine.arguments.dropFirst()
 guard args.count == 2, let command = args.first, let out = args.last else {
-    print("usage: swift scripts/icons.swift menubar <out-dir>")
+    print("usage: swift scripts/icons.swift menubar|logos|appicon <out-dir>")
     exit(2)
 }
 let dir = URL(fileURLWithPath: out)
@@ -186,6 +370,14 @@ switch command {
 case "menubar":
     writePDF(shipped, dir.appendingPathComponent("MenuBarIcon.pdf"))
     menubarSheet(dir.appendingPathComponent("menubar-options.png"))
+case "logos":
+    for (i, logo) in logos.enumerated() {
+        writePNG(logoBitmap(logo, pixels: 1024), dir.appendingPathComponent("logo-\(i + 1).png"))
+    }
+    logoSheet(dir.appendingPathComponent("logo-options.png"))
+case "appicon":
+    writeAppIcon(dir)
+    writePNG(logoBitmap(shippedLogo, pixels: 1024), dir.appendingPathComponent("AppIcon-1024.png"))
 default:
     print("unknown command \(command)")
     exit(2)

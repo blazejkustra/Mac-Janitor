@@ -66,6 +66,7 @@ struct SettingsView: View {
             }
         }
         .frame(width: 760, height: 560)
+        .tint(Palette.accent)
         .task { await store.refreshAccess() }
     }
 

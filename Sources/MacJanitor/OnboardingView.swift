@@ -92,6 +92,7 @@ struct OnboardingView: View {
             .padding(.bottom, 24)
         }
         .frame(width: 800, height: 600)
+        .tint(Palette.accent)
     }
 
     private func isDone(_ step: OnboardingModel.Step) -> Bool {

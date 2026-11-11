@@ -20,6 +20,7 @@ struct PanelView: View {
             }
         }
         .frame(width: Metrics.width)
+        .tint(Palette.accent)
     }
 }
 
@@ -84,8 +85,8 @@ private struct HeroCard: View {
     }
 
     private var ringTint: Color {
-        if scanning { return .accentColor }
-        return store.isLowDisk ? .red : store.usedFraction > 0.85 ? .orange : .accentColor
+        if scanning { return Palette.accent }
+        return store.isLowDisk ? .red : store.usedFraction > 0.85 ? .orange : Palette.accent
     }
 
     @ViewBuilder

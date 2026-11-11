@@ -80,6 +80,9 @@ or `.claude/settings.local.json`) are not kept.
 - `Sources/janitor` - the CLI, for developers
 - `Sources/MacJanitor` - the menu-bar app; `MacJanitor run ...` is the CLI
 - `install/` - build, install and uninstall scripts
+- `scripts/icons.swift` - draws the app icon and menu-bar glyph into `assets/`
+  (`swift scripts/icons.swift appicon assets`, `... menubar assets`, `... logos <dir>` for the options sheet)
+- `site/` - the static marketing site; serve it with `python3 -m http.server -d site`
 
 ## Use
 

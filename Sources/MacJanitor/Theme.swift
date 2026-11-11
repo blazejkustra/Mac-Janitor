@@ -10,6 +10,9 @@ enum Palette {
     static let stroke = dynamic(dark: NSColor(white: 1, alpha: 0.06), light: NSColor(white: 0, alpha: 0.07))
     static let divider = dynamic(dark: NSColor(white: 1, alpha: 0.08), light: NSColor(white: 0, alpha: 0.08))
     static let selection = dynamic(dark: NSColor(white: 1, alpha: 0.1), light: NSColor(white: 0, alpha: 0.07))
+    /// Spruce green from the app icon, a shade lighter in dark mode.
+    static let accent = dynamic(dark: NSColor(srgbRed: 0.16, green: 0.66, blue: 0.53, alpha: 1),
+                                light: NSColor(srgbRed: 0.07, green: 0.53, blue: 0.42, alpha: 1))
     static let track = dynamic(dark: NSColor(white: 1, alpha: 0.1), light: NSColor(white: 0, alpha: 0.08))
 
     private static func dynamic(dark: NSColor, light: NSColor) -> Color {
@@ -200,7 +203,7 @@ struct SpinningRing<Center: View>: View {
                 Circle().stroke(Palette.track, lineWidth: lineWidth)
                 Circle()
                     .trim(from: 0, to: 0.22)
-                    .stroke(Color.accentColor.gradient, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(Palette.accent.gradient, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(turn * 360 - 90))
                 center
             }
@@ -210,7 +213,7 @@ struct SpinningRing<Center: View>: View {
 
 /// The large pill buttons used for the main action of a view.
 struct PillButtonStyle: ButtonStyle {
-    var tint: Color = .accentColor
+    var tint: Color = Palette.accent
     var active = false
     @Environment(\.isEnabled) private var isEnabled
 
@@ -293,12 +296,18 @@ struct AppSignature: View {
     }
 }
 
-/// Placeholder mark until the app icon is chosen.
+/// The app icon, from the bundle; a bare binary shows a tile in the icon's colours instead.
 struct AppMark: View {
     var size: CGFloat
 
+    private static let icon = Bundle.main.image(forResource: "AppIcon")
+
     var body: some View {
-        IconTile(symbol: "internaldrive.fill", tint: .accentColor, size: size)
+        if let icon = Self.icon {
+            Image(nsImage: icon).resizable().frame(width: size, height: size)
+        } else {
+            IconTile(symbol: "paintbrush.pointed.fill", tint: Palette.accent, size: size)
+        }
     }
 }
 
