@@ -22,6 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="toy.css">
 </head>
 <body class="home">
 <main>
@@ -34,6 +35,16 @@
       <source type="image/webp" srcset="assets/photos/glacier-2560.webp">
       <img src="assets/photos/glacier-2560.jpg" alt="" width="2560" height="1600" fetchpriority="high">
     </picture>
+
+    <div class="jt jt-hero" data-janitor-toy data-events=".stage" data-avoid=".intro, .nav" data-hint="Hover the folders" data-hint-touch="Tap the folders" data-hint-click="Click the folders" data-hint-after="More keep coming" data-hint-kept="In-use folders stay put">
+      <div class="jt-field"></div>
+      <canvas class="jt-canvas"></canvas>
+      <div class="jt-dock" data-avoid>
+        <div class="jt-sink"><svg viewBox="100 100 824 824" aria-hidden="true"><defs><linearGradient id="jt-sink-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3e86ae"/><stop offset="0.7" stop-color="#256694"/></linearGradient></defs><path d="M640.59 100C722.19 100 763 100 806.92 113.89C854.88 131.34 892.66 169.12 910.11 217.08C924 261 924 301.81 924 383.41L924 640.59C924 722.19 924 763 910.11 806.92C892.66 854.88 854.88 892.66 806.92 910.11C763 924 722.19 924 640.59 924L383.41 924C301.81 924 261 924 217.08 910.11C169.12 892.66 131.34 854.88 113.89 806.92C100 763 100 722.19 100 640.59L100 383.41C100 301.81 100 261 113.89 217.08C131.34 169.12 169.12 131.34 217.08 113.89C261 100 301.81 100 383.41 100Z" fill="url(#jt-sink-bg)"/><g transform="translate(512 277) scale(8.32)"><g class="lid"><path fill="#0b1a25" transform="translate(-3.2 3.2)" d="M-7 3.5A3.5 3.5 0 0 1 -3.5 0L3.5 0A3.5 3.5 0 0 1 7 3.5L7 7A3.5 3.5 0 0 1 3.5 10.5L-3.5 10.5A3.5 3.5 0 0 1 -7 7ZM-25 8A4.5 4.5 0 0 1 -20.5 3.5L20.5 3.5A4.5 4.5 0 0 1 25 8L25 8A4.5 4.5 0 0 1 20.5 12.5L-20.5 12.5A4.5 4.5 0 0 1 -25 8Z"/><path fill="#fff" d="M-7 3.5A3.5 3.5 0 0 1 -3.5 0L3.5 0A3.5 3.5 0 0 1 7 3.5L7 7A3.5 3.5 0 0 1 3.5 10.5L-3.5 10.5A3.5 3.5 0 0 1 -7 7ZM-25 8A4.5 4.5 0 0 1 -20.5 3.5L20.5 3.5A4.5 4.5 0 0 1 25 8L25 8A4.5 4.5 0 0 1 20.5 12.5L-20.5 12.5A4.5 4.5 0 0 1 -25 8Z"/></g><path fill="#0b1a25" fill-rule="evenodd" transform="translate(-3.2 3.2)" d="M-15.94 19.18A4 4 0 0 1 -12.16 16.5L12.16 16.5A4 4 0 0 1 15.94 19.18L24.83 44.58A8.96 8.96 0 0 1 16.38 56.5L14.84 56.5A3 3 0 0 1 11.86 53.850L9.62 34.71A2.5 2.5 0 0 0 7.14 32.5L6.87 32.5A2.23 2.23 0 0 0 4.66 34.98L6.78 53.15A3 3 0 0 1 3.8 56.5L-3.8 56.5A3 3 0 0 1 -6.78 53.15L-4.66 34.98A2.23 2.23 0 0 0 -6.87 32.5L-7.14 32.5A2.5 2.5 0 0 0 -9.62 34.71L-11.86 53.85A3 3 0 0 1 -14.84 56.5L-16.37 56.5A8.96 8.96 0 0 1 -24.83 44.58Z"/><path fill="#fff" fill-rule="evenodd" d="M-15.94 19.18A4 4 0 0 1 -12.16 16.5L12.16 16.5A4 4 0 0 1 15.94 19.18L24.83 44.58A8.96 8.96 0 0 1 16.38 56.5L14.84 56.5A3 3 0 0 1 11.86 53.85L9.62 34.71A2.5 2.5 0 0 0 7.14 32.5L6.87 32.5A2.23 2.23 0 0 0 4.66 34.98L6.78 53.15A3 3 0 0 1 3.8 56.5L-3.8 56.5A3 3 0 0 1 -6.78 53.15L-4.66 34.98A2.23 2.23 0 0 0 -6.87 32.5L-7.14 32.5A2.5 2.5 0 0 0 -9.62 34.71L-11.86 53.85A3 3 0 0 1 -14.84 56.5L-16.37 56.5A8.96 8.96 0 0 1 -24.83 44.58Z"/></g></svg></div>
+        <div class="jt-readout"><span class="jt-count">0.0</span><span class="jt-unit">GB freed</span></div>
+        <span class="jt-hint"></span>
+      </div>
+    </div>
 
     <header class="nav wrap">
       <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="30" height="30">Mac Janitor</a>
@@ -110,5 +121,6 @@
 </template>
 
 <script src="player.js" defer></script>
+<script src="toy.js" defer></script>
 </body>
 </html>
