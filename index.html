@@ -15,8 +15,9 @@
 </head>
 <body class="home">
 <main class="stage">
-  <img class="backdrop" src="assets/backdrop.jpg" alt="" aria-hidden="true">
-  <img class="peek" src="assets/panel-dark.png" width="360" height="568" alt="Mac Janitor's menu-bar panel: 17.7 GB can be freed, categories shown as tiles with their sizes">
+  <div class="backdrop" id="backdrop" aria-hidden="true">
+    <img id="poster" src="assets/footage/sailboat.jpg" alt="">
+  </div>
 
   <section class="card" aria-labelledby="title">
     <img class="mark" src="assets/icon-256.png" width="72" height="72" alt="Mac Janitor icon">
@@ -62,6 +63,7 @@
   </div>
 </template>
 
+<script src="backdrop.js"></script>
 <script src="player.js" defer></script>
 </body>
 </html>
