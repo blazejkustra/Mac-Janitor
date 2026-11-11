@@ -19,6 +19,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/
 cp "$BIN_DIR/MacJanitor" "$APP/Contents/MacOS/MacJanitor"
 cp assets/MenuBarIcon.pdf "$APP/Contents/Resources/MenuBarIcon.pdf"
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+cp assets/Logo.pdf "$APP/Contents/Resources/Logo.pdf"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

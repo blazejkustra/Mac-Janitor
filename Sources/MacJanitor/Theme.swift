@@ -296,17 +296,17 @@ struct AppSignature: View {
     }
 }
 
-/// The app icon, from the bundle; a bare binary shows a tile in the icon's colours instead.
+/// The mark from assets/logo.svg; a bare binary outside the bundle shows a tile in its colours instead.
 struct AppMark: View {
     var size: CGFloat
 
-    private static let icon = Bundle.main.image(forResource: "AppIcon")
+    private static let icon = Bundle.main.image(forResource: "Logo")
 
     var body: some View {
         if let icon = Self.icon {
             Image(nsImage: icon).resizable().frame(width: size, height: size)
         } else {
-            IconTile(symbol: "paintbrush.pointed.fill", tint: Palette.accent, size: size)
+            IconTile(symbol: "trash.fill", tint: Palette.accent, size: size)
         }
     }
 }

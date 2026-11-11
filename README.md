@@ -1,12 +1,52 @@
+<img src="./assets/logo.svg" width="80" />
+
 # Mac Janitor
 
-Keeps the disk from filling up with agent leftovers, build output, caches and the Trash. A menu-bar
-app previews what would go, cleans on demand and holds the settings. A first-run setup window
-explains what it does, walks through Full Disk Access and asks whether to clean automatically.
-Automatic cleaning stays off until you turn it on; then a LaunchAgent inside the app bundle wakes
-the app's own executable hourly, which cleans every 6 hours, or at once when free space drops below 20 GB.
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS_13+-lightgrey)](./site/index.html)
+
+Gets your disk back from the leftovers dev tools pile up: old worktrees, node_modules, build output, caches and the Trash.
+
+<img src="./site/assets/demo-poster.jpg" alt="The Mac Janitor menu-bar panel: 17.7 GB can be freed, with each category as a tile" />
+
+[![Download for macOS](https://img.shields.io/badge/Download_for_macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/blazejkustra/Mac-Janitor/releases/latest)
+
+macOS 13 or later, Apple silicon and Intel.
+
+## Install
+
+Open the DMG, drag Mac Janitor to Applications and open it. The setup window walks through
+**Full Disk Access** (so it can look in Desktop, Documents, Downloads and the Trash) and asks whether
+to clean on a schedule. Automatic cleaning stays off until you turn it on.
+
+## Use
+
+| | |
+|---|---|
+| Click the menu-bar icon | See what can be freed, by category |
+| Click a category | See every item, with its project, size and reason |
+| Pin an item | Keep it for good, along with everything inside it |
+| **Clean** | Remove what is listed, after one confirmation |
+| **Esc** | Back to the overview |
+
+Settings hold the schedule, which categories run and how long each waits.
 
 ## What it removes
+
+Things a build, an install or a download makes again, once they have sat unused: old worktrees,
+their node_modules, build output in idle projects, unused caches, Docker images, Android emulators,
+agent scratch folders and old items in the Trash. Large forgotten files go to the Trash, and only when
+you pick them.
+
+## What it never removes
+
+Anything a running app has open, anything a LaunchAgent points to, anything you pin, unpushed
+commits, or your documents, photos and music. Uncommitted changes in a worktree are saved to a patch
+first.
+
+<details>
+<summary>Every rule in detail</summary>
+
+### What it removes
 
 | What | When |
 |---|---|
@@ -52,7 +92,7 @@ rules need a GitHub remote. The main checkout and branches are never removed.
 `node_modules`, plus its git `HEAD` and `index`. Directory times are ignored, so
 removing `node_modules` does not restart the clock.
 
-## What it never removes
+### What it never removes
 
 - Anything a running process has open or as its working directory (`lsof`).
 - Anything a LaunchAgent plist mentions.
@@ -73,27 +113,30 @@ for 30 days. A commit that no branch or remote holds gets a
 `refs/janitor/<name>-<time>` ref. Ignored files (build output, but also `.env.local`
 or `.claude/settings.local.json`) are not kept.
 
-## Layout
+</details>
+
+## Build from source
+
+```sh
+./install/install.sh                    # build build/Mac Janitor.app and open it
+swift test
+.build/release/janitor run --dry-run    # print the plan, delete nothing
+swift run MacJanitor --snapshot /tmp/shots
+```
+
+<details>
+<summary>Layout and files</summary>
 
 - `Sources/JanitorCore` - rules, guards, config, the run report
 - `Sources/JanitorCLI` - `janitor run ...`, shared by the CLI and the app's headless mode
 - `Sources/janitor` - the CLI, for developers
 - `Sources/MacJanitor` - the menu-bar app; `MacJanitor run ...` is the CLI
-- `install/` - build, install and uninstall scripts
-- `scripts/icons.swift` - draws the app icon and menu-bar glyph into `assets/`
-  (`swift scripts/icons.swift appicon assets`, `... menubar assets`, `... logos <dir>` for the options sheet)
-- `site/` - the static marketing site; serve it with `python3 -m http.server -d site`. `scripts/site-footage.sh`
-  cuts the background loops from the original footage; drop a `site/assets/demo.mp4` in place to enable the video
+- `assets/` - `logo.svg` and `menubar.svg` are the masters; `swift scripts/icons.swift build` makes the
+  app icon, menu-bar glyph and site icons from them
+- `site/` - the website; serve it with `python3 -m http.server -d site`. `scripts/site-footage.sh` cuts
+  its background loops, and a `site/assets/demo.mp4` dropped in place enables the video
 
-## Use
-
-```sh
-./install/install.sh                  # build build/Mac Janitor.app and open it (setup runs on first launch)
-.build/release/janitor run --dry-run  # print the plan, delete nothing
-./install/uninstall.sh                # remove the LaunchAgent older installs wrote
-swift test
-swift run MacJanitor --snapshot /tmp/shots   # render the panel, settings and setup to PNGs
-```
+`./install/uninstall.sh` removes the LaunchAgent that older developer installs wrote.
 
 The report of the last real run is `~/Library/Application Support/MacJanitor/last-run.json`,
 one line per run goes to `history.jsonl` beside it, and every action is logged to
@@ -102,3 +145,5 @@ one line per run goes to `history.jsonl` beside it, and every action is logged t
 Settings live in `~/Library/Application Support/MacJanitor/config.json`, which holds
 only the keys that differ from the defaults in `Sources/JanitorCore/Config.swift`,
 e.g. `{"paused": true, "openPRIdleDays": 5, "disabled": ["avd"]}`. The applet edits it.
+
+</details>
