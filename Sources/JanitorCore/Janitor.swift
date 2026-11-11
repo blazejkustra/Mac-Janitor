@@ -45,10 +45,12 @@ public enum Janitor {
 
         let started = Date()
         let freeBefore = freeDiskBytes()
+        ScanProgress.step("Checking which files are in use")
         let guards = try Guards.gather()
         var skips: [Skip] = []
         var issues: [Issue] = []
 
+        ScanProgress.step("Looking for git projects and worktrees")
         let wt = WorktreeJanitor(cfg: cfg, guards: guards, only: only)
         Safety.protectedPaths = (wt.repos + wt.repos.map(WorktreeJanitor.root)
             + [cfg.avdHome, cfg.scratchpadRoot, cfg.trashDir, cfg.androidSDK + "/system-images"] + cfg.cacheRoots)
@@ -56,14 +58,23 @@ public enum Janitor {
         let worktrees = wt.plan()
         skips += wt.skips
         issues += wt.issues
+        ScanProgress.found(.worktree, worktrees.map(\.action), skips)
+        ScanProgress.found(.nodeModules, worktrees.map(\.action), skips)
         if !Privacy.hasFullDiskAccess, let c = [Category.worktree, .nodeModules, .build, .largeFile].first(where: cfg.enabled),
            Privacy.askingFolders.contains(where: { $0.hasPrefix(FS.canonical(FS.normalize(cfg.worktreeSearchRoot)) + "/") }) {
             issues.append(Issue(c, "Desktop, Documents and Downloads are not searched; give janitor Full Disk Access "
                                 + "in System Settings > Privacy & Security"))
         }
+        ScanProgress.step("Checking Claude Code scratchpads")
         let scratch = cfg.enabled(.scratchpad) ? ScratchpadJanitor.plan(cfg, guards: guards, now: started, skips: &skips) : []
+        ScanProgress.found(.scratchpad, scratch, skips)
+        ScanProgress.step("Checking Android emulators")
         let avds = cfg.enabled(.avd) ? AVDJanitor.plan(cfg, guards: guards, now: started, skips: &skips) : []
+        ScanProgress.found(.avd, avds, skips)
+        ScanProgress.step("Checking Docker images")
         let images = cfg.enabled(.dockerImage) ? DockerJanitor.plan(cfg, now: started, skips: &skips, issues: &issues) : []
+        ScanProgress.found(.dockerImage, images, skips)
+        ScanProgress.step("Searching your home folder for build output and large files")
 
         let searchRoot = FS.canonical(FS.normalize(cfg.worktreeSearchRoot))
         let unscanned = Set([searchRoot + "/Library", FS.canonical(cfg.trashDir)] + cfg.cacheRoots.map(FS.canonical)
@@ -84,9 +95,15 @@ public enum Janitor {
             if (path as NSString).lastPathComponent == "node_modules", under(path, nodeModulesOwners) { return "node_modules" }
             return nil
         }, skips: &skips) : []
-        let caches = cfg.enabled(.cache) ? CacheJanitor.plan(cfg, guards: guards, now: started, skips: &skips) : []
-        let trash = cfg.enabled(.trash) ? TrashJanitor.plan(cfg, guards: guards, now: started, skips: &skips, issues: &issues) : []
+        ScanProgress.found(.build, builds, skips)
         let large = cfg.enabled(.largeFile) ? LargeFileJanitor.plan(cfg, guards: guards, now: started, scan: scan, skips: &skips) : []
+        ScanProgress.found(.largeFile, large, skips)
+        ScanProgress.step("Checking app and developer caches")
+        let caches = cfg.enabled(.cache) ? CacheJanitor.plan(cfg, guards: guards, now: started, skips: &skips) : []
+        ScanProgress.found(.cache, caches, skips)
+        ScanProgress.step("Checking the Trash")
+        let trash = cfg.enabled(.trash) ? TrashJanitor.plan(cfg, guards: guards, now: started, skips: &skips, issues: &issues) : []
+        ScanProgress.found(.trash, trash, skips)
 
         var actions: [Action] = []
         // Large files are previewed, but only ever removed by name.

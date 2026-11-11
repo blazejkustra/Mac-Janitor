@@ -190,6 +190,7 @@ final class WorktreeJanitor {
         let skipping = [root + "/Library", root + "/.Trash", root + "/.cocoapods"] + Privacy.unwalked()
         FS.walk(root, skipping: FS.mountPoints().union(skipping)) { path, name, st, _ in
             if name == "node_modules" { return false }
+            if st.st_mode & S_IFMT == S_IFDIR { ScanProgress.folder(path) }
             guard name == ".git" else { return true }
             let checkout = (path as NSString).deletingLastPathComponent
             if hasGitDirectory(checkout) {
@@ -370,6 +371,8 @@ final class WorktreeJanitor {
             return ([], [])
         }
         let wantWhole = cfg.enabled(.worktree)
+        ScanProgress.step("Checking \((repo as NSString).lastPathComponent) and its worktrees")
+        ScanProgress.folder(repo)
         var mainRef = "origin/main"
         var prs: [PRInfo] = []
         // A local-only repo has nothing to fetch, and only GitHub has PRs to ask gh about.

@@ -2,7 +2,7 @@ import AppKit
 import JanitorCore
 import SwiftUI
 
-/// Renders the panel for fixture states, light and dark, to `<dir>/<fixture>-<appearance>.png`.
+/// Renders the panel and windows for fixture states, light and dark, to `<dir>/<fixture>-<appearance>.png`.
 /// Offscreen AppKit rendering, because ImageRenderer cannot draw switches and steppers.
 @MainActor
 enum Snapshot {
@@ -27,10 +27,8 @@ enum Snapshot {
         }
     }
 
-    private static func image(_ store: Store, _ appearance: NSAppearance) -> Data? {
-        let host = NSHostingView(rootView: PanelView()
-            .environmentObject(store)
-            .background(Color(nsColor: .windowBackgroundColor)))
+    private static func image(_ view: AnyView, _ appearance: NSAppearance) -> Data? {
+        let host = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
         let window = ActiveWindow(contentRect: NSRect(x: 0, y: 0, width: Metrics.width, height: 600),
                                   styleMask: .borderless, backing: .buffered, defer: false)
         window.appearance = appearance
@@ -87,72 +85,105 @@ enum Snapshot {
         dryRun([
             planned(.worktree, "\(worktrees)/harmony-flag", 2_310_000_000, "merged (PR #767 merged), untouched for 2.0 days"),
             planned(.worktree, "\(worktrees)/fix-tap-retry", 812_000_000, "PR #1490 open, untouched for 3.4 days"),
-            planned(.nodeModules, "\(worktrees)/lens-variants/node_modules", 1_420_000_000),
-            planned(.nodeModules, "\(worktrees)/vega-focus/node_modules", 1_180_000_000),
-            planned(.nodeModules, "\(worktrees)/docs-reference/node_modules", 960_000_000),
+        ] + nodeModules + [
             planned(.avd, "Pixel_6_API_34", 7_400_000_000, "unused for 9.3 days"),
             planned(.scratchpad, "/private/tmp/claude-501/-Users-me-dev/0c1d2e3f", 48_000_000, "untouched for 15.0 days"),
+            planned(.cache, "\(home)/Library/Caches/com.spotify.client", 1_210_000_000, "unused for 41 days"),
+            planned(.trash, "\(home)/.Trash/Screen Recording 2026-09-02.mov", 640_000_000, "in the Trash for 12 days"),
         ], issues: [Issue(.dockerImage, "Docker is not running")])
     }
 
-    private static var expandedPreview: Report {
-        var failed = planned(.worktree, "\(worktrees)/stale-ci-cache", 640_000_000, "untouched for 31.2 days")
-        failed.status = .failed
-        failed.error = "rm: Permission denied"
-        return dryRun([
-            planned(.worktree, "\(worktrees)/harmony-flag", 2_310_000_000, "merged (PR #767 merged), untouched for 2.0 days"),
-            planned(.worktree, "\(worktrees)/fix-tap-retry-after-quiescence-stall", 812_000_000, "PR #1490 open, untouched for 3.4 days"),
-            failed,
-            planned(.nodeModules, "\(worktrees)/lens-variants/node_modules", 1_420_000_000),
-        ], skips: [
-            Skip(category: .worktree, target: "\(worktrees)/map-crawler", reason: "kept", kept: true, bytes: 1_760_000_000),
-            Skip(category: .worktree, target: "\(worktrees)/donor-main",
-                 reason: "merged (HEAD is in main), untouched for 12.3 days, but a kept checkout's node_modules links into it"),
-            Skip(category: .dockerImage, target: "public.ecr.aws/supabase/studio:2026.10.12-sha-3699278 (24eda6a4098f)",
-                 reason: "arrived 12 days ago, but container supabase_studio_argent-platform uses it"),
-        ])
+    /// The node_modules list from the bug report, with the context each row now carries.
+    private static var nodeModules: [Action] {
+        let dev = "\(home)/Developer"
+        return [
+            planned(.nodeModules, "\(dev)/witryna-landing-clay/node_modules", 1_160_000_000, "worktree untouched for 6.6 days"),
+            planned(.nodeModules, "\(dev)/uncut/.claude/worktrees/agent-a578b48dc68f31141/node_modules", 1_120_000_000,
+                    "worktree untouched for 8.9 days"),
+            planned(.nodeModules, "\(dev)/uncut/.claude/worktrees/factory-gates/node_modules", 1_110_000_000,
+                    "worktree untouched for 9.5 days"),
+            planned(.nodeModules, "\(dev)/argent/.claude/worktrees/agent-a7b1251c0208dde89/packages/docs/node_modules",
+                    818_000_000, "worktree untouched for 14.7 days"),
+            planned(.nodeModules, "\(dev)/uncut/.claude/worktrees/agent-a393c0ea3e1f4cdf9/node_modules", 708_000_000,
+                    "worktree untouched for 19.2 days"),
+            planned(.nodeModules, "\(home)/.t3/worktrees/argent/t3-a6c8cef2/node_modules", 367_000_000,
+                    "worktree untouched for 14.7 days"),
+            planned(.nodeModules, "\(dev)/argent/.claude/worktrees/agent-a7b1251c0208dde89/packages/tool-server/node_modules",
+                    3_200_000, "worktree untouched for 14.7 days"),
+            planned(.nodeModules, "\(home)/.t3/worktrees/argent/t3-a6c8cef2/packages/tool-server/node_modules", 3_200_000,
+                    "worktree untouched for 14.7 days"),
+        ]
     }
 
-    private static var fixtures: [(String, () -> Store)] {
+    private static var partialScan: ScanState {
+        var scan = ScanState()
+        scan.apply(.found(.worktree, actions: Array(mixedPreview.actions.prefix(2)), skips: []))
+        scan.apply(.found(.nodeModules, actions: nodeModules, skips: []))
+        scan.apply(.step("Searching your home folder for build output and large files"))
+        scan.apply(.folder("\(home)/Developer/argent/packages/tool-server/src"))
+        return scan
+    }
+
+    private static func panel(_ store: Store) -> AnyView {
+        AnyView(PanelView().environmentObject(store))
+    }
+
+    private static func window<V: View>(_ view: V, _ store: Store) -> AnyView {
+        AnyView(view.environmentObject(store))
+    }
+
+    private static func onboarding(_ step: OnboardingModel.Step, _ store: Store) -> AnyView {
+        let model = OnboardingModel()
+        model.step = step
+        return window(OnboardingView(model: model), store)
+    }
+
+    private static var normal: Store {
+        Store(freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun, preview: mixedPreview, agentStatus: .enabled)
+    }
+
+    private static var fixtures: [(String, () -> AnyView)] {
         [
-            ("a-normal", { Store(freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun, preview: mixedPreview) }),
-            ("b-expanded", {
-                var cfg = Config()
-                cfg.keep = ["\(worktrees)/map-crawler"]
-                let s = Store(config: cfg, freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun, preview: expandedPreview)
-                s.expanded = .worktree
-                s.hoveredItem = "worktree:\(worktrees)/harmony-flag"
-                return s
+            ("a-overview", { panel(normal) }),
+            ("b-scanning", {
+                panel(Store(freeBytes: 124 * gb, totalBytes: total, busy: .previewing, fullDiskAccess: false, scan: partialScan))
             }),
-            ("c-previewing", { Store(freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun, busy: .previewing) }),
-            ("c-refreshing", { Store(freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun, preview: mixedPreview, busy: .previewing) }),
-            ("d-low-disk", { Store(freeBytes: 12_400_000_000, totalBytes: total, lastRun: lastRun, preview: mixedPreview) }),
-            ("e-settings", {
+            ("c-detail", {
                 var cfg = Config()
-                cfg.keep = ["\(worktrees)/map-crawler", "Pixel_9_API_36"]
-                cfg.nodeModulesIdleDays = 5
-                let s = Store(config: cfg, freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun,
-                              loginStatus: .requiresApproval)
-                s.showSettings = true
-                return s
+                cfg.keep = ["\(home)/Developer/uncut/.claude/worktrees/factory-gates/node_modules"]
+                let s = Store(config: cfg, freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun, preview: mixedPreview)
+                s.selected = .nodeModules
+                s.hoveredItem = "node_modules:\(home)/Developer/witryna-landing-clay/node_modules"
+                return panel(s)
             }),
-            ("f-nothing", {
+            ("d-confirm", {
+                let s = normal
+                s.confirmingClean = true
+                return panel(s)
+            }),
+            ("e-empty", {
                 var cfg = Config()
                 cfg.paused = true
-                cfg.disabled = [.dockerImage]
-                return Store(config: cfg, freeBytes: 312 * gb, totalBytes: total, lastRun: lastRun, preview: dryRun([]))
+                return panel(Store(config: cfg, freeBytes: 312 * gb, totalBytes: total, lastRun: lastRun, preview: dryRun([])))
             }),
-            ("g-error", {
-                Store(freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun, preview: mixedPreview,
-                      problem: "janitor not found at ~/Applications/MacJanitor.app/Contents/MacOS/janitor")
+            ("f-error", {
+                panel(Store(freeBytes: 12_400_000_000, totalBytes: total, lastRun: lastRun, preview: mixedPreview,
+                            problem: "lsof failed, so nothing in use can be told apart"))
             }),
-            ("i-settings-error", {
-                let s = Store(freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun,
-                              problem: "Launch at login: Operation not permitted")
-                s.showSettings = true
-                return s
+            ("g-settings", { window(SettingsView(), normal) }),
+            ("g-settings-categories", { window(SettingsView(page: .categories), normal) }),
+            ("g-settings-kept", {
+                var cfg = Config()
+                cfg.keep = ["\(home)/Developer/uncut/.claude/worktrees/factory-gates", "\(home)/Movies/Final Cut", "Pixel_9_API_36"]
+                return window(SettingsView(page: .kept), Store(config: cfg, freeBytes: 124 * gb, totalBytes: total))
             }),
-            ("h-cleaning", { Store(freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun, preview: mixedPreview, busy: .cleaning) }),
+            ("h-onboarding-welcome", { onboarding(.welcome, normal) }),
+            ("i-onboarding-access", {
+                onboarding(.access, Store(freeBytes: 124 * gb, totalBytes: total, fullDiskAccess: false))
+            }),
+            ("j-onboarding-access-granted", { onboarding(.access, normal) }),
+            ("k-onboarding-schedule", { onboarding(.schedule, normal) }),
+            ("l-onboarding-done", { onboarding(.done, normal) }),
         ]
     }
 }

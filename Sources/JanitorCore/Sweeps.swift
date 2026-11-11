@@ -83,6 +83,7 @@ enum CacheJanitor {
             for name in ((try? FileManager.default.contentsOfDirectory(atPath: root)) ?? []).sorted()
             where name != ".DS_Store" && !name.hasPrefix("com.apple.") {
                 let path = root + "/" + name
+                ScanProgress.folder(path)
                 guard !FS.isSymlink(path), let used = FS.lastUsed(path, newerThan: cutoff), used <= cutoff else { continue }
                 if let a = planPath(.cache, path, reason: "unused for \(days(used, now)) days",
                                     cfg: cfg, guards: guards, skips: &skips) { actions.append(a) }
@@ -152,6 +153,7 @@ struct HomeScan {
         let skip = skipping.union(FS.mountPoints())
         while let (dir, outer) = stack.popLast() {
             guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir) else { continue }
+            ScanProgress.folder(dir)
             let project = names.contains(".git") ? dir : outer
             for name in names {
                 let path = dir + "/" + name

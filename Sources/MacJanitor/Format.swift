@@ -45,58 +45,80 @@ enum Format {
         date.formatted(date: .abbreviated, time: .shortened)
     }
 
+    /// "worktree untouched for 6 days" -> "Worktree untouched for 6 days."
+    static func sentence(_ s: String) -> String {
+        guard let first = s.first else { return s }
+        let text = first.uppercased() + s.dropFirst()
+        return text.hasSuffix(".") ? text : text + "."
+    }
+
     /// 3 -> "3", 0.5 -> "0.5".
     static func number(_ x: Double) -> String {
         x == x.rounded() ? String(Int(x)) : String(format: "%.1f", x)
-    }
-
-    /// A node_modules by its worktree, a scratchpad by project and session, an image by
-    /// its first tag without registry, build output and cache entries by what holds them,
-    /// a system image by API and tag, anything else by its last path component.
-    static func name(_ target: String, _ category: JanitorCore.Category) -> String {
-        let parts = target.split(separator: "/").map(String.init)
-        switch category {
-        case .nodeModules:
-            // ".../<repo>-worktrees/<worktree>/[<package path>/]node_modules"
-            let owner = parts.dropLast()
-            let start = (owner.lastIndex { $0.hasSuffix("-worktrees") }).map { $0 + 1 } ?? owner.count - 1
-            return owner[max(start, owner.startIndex)...].joined(separator: "/")
-        case .scratchpad:
-            // ".../<project path with / as ->/<session id>"
-            guard parts.count >= 2 else { return target }
-            let project = parts[parts.count - 2].split(separator: "-").last.map(String.init) ?? ""
-            return "\(project) · \(parts[parts.count - 1].prefix(8))"
-        case .build, .cache:
-            return parts.suffix(category == .build ? 3 : 2).joined(separator: "/")
-        case .avd where target.hasPrefix("/"):
-            // ".../system-images/<api>/<tag>/<abi>"
-            return parts.suffix(3).dropLast().joined(separator: " ")
-        case .dockerImage:
-            let parts = target.components(separatedBy: " (")
-            let tags = parts[0]
-            if tags == "<none>", parts.count > 1 { return String(parts[1].dropLast()) }
-            let first = tags.components(separatedBy: ",").first ?? tags
-            return first.components(separatedBy: "/").last ?? first
-        default:
-            return (target as NSString).lastPathComponent
-        }
     }
 }
 
 extension JanitorCore.Category {
     var title: String {
         switch self {
-        case .worktree: return "Worktrees"
-        case .nodeModules: return "node_modules"
-        case .dockerImage: return "Docker"
-        case .avd: return "Emulators"
-        case .scratchpad: return "Scratchpads"
+        case .worktree: return "Old worktrees"
+        case .nodeModules: return "Worktree dependencies"
+        case .dockerImage: return "Docker images"
+        case .avd: return "Android emulators"
+        case .scratchpad: return "Agent scratch files"
         case .build: return "Build output"
         case .cache: return "Caches"
         case .trash: return "Trash"
-        case .largeFile: return "Stale large files"
+        case .largeFile: return "Large forgotten files"
         }
     }
+
+    /// One line under the title in the overview.
+    var summary: String {
+        switch self {
+        case .worktree: return "Merged or abandoned git checkouts"
+        case .nodeModules: return "node_modules in idle worktrees"
+        case .dockerImage: return "Images no container uses"
+        case .avd: return "Unused emulators and images"
+        case .scratchpad: return "Old agent session folders"
+        case .build: return "Compiled files in idle projects"
+        case .cache: return "Data nothing has read lately"
+        case .trash: return "Items trashed a while ago"
+        case .largeFile: return "Big files unopened for months"
+        }
+    }
+
+    /// What it is and what removing it costs, for the category's own page and settings.
+    func explanation(_ c: Config) -> String {
+        switch self {
+        case .worktree:
+            return "Git worktrees whose branch is merged with nothing left to push (after \(days(c.mergedIdleDays))), "
+                + "whose pull request is open but untouched for \(days(c.openPRIdleDays)), or that nobody touched for "
+                + "\(days(c.abandonedIdleDays)). Uncommitted changes are saved to a patch first."
+        case .nodeModules:
+            return "Installed packages inside worktrees untouched for \(days(c.nodeModulesIdleDays)). "
+                + "The code stays; run your package manager's install to get them back."
+        case .dockerImage:
+            return "Docker images no container has used for \(days(c.dockerImageUnusedDays)). Docker downloads them again when needed."
+        case .avd:
+            return "Android emulators and system images unused for \(days(c.avdUnusedDays)). Android Studio can recreate them."
+        case .scratchpad:
+            return "Claude Code session folders in /private/tmp untouched for \(days(c.scratchpadIdleDays))."
+        case .build:
+            return "Build folders such as node_modules, .next, Pods, build and target in git projects that have not "
+                + "changed for \(days(c.buildIdleDays)). The next build makes them again."
+        case .cache:
+            return "Cache entries nothing wrote or read for \(days(c.cacheIdleDays)). Apps and tools rebuild them. "
+                + "macOS's own caches are left alone."
+        case .trash:
+            return "Items that have been in the Trash for over \(days(c.trashIdleDays))."
+        case .largeFile:
+            return "Files over \(Format.number(c.largeFileMinGB)) GB in your home folder that nobody opened for "
+                + "\(days(c.largeFileIdleDays)). Only removed when you clean by hand, and then moved to the Trash."
+        }
+    }
+
+    private func days(_ n: Double) -> String { n == 1 ? "1 day" : "\(Format.number(n)) days" }
 
     var symbol: String {
         switch self {
@@ -108,7 +130,7 @@ extension JanitorCore.Category {
         case .build: return "hammer"
         case .cache: return "archivebox"
         case .trash: return "trash"
-        case .largeFile: return "zzz"
+        case .largeFile: return "doc.badge.clock"
         }
     }
 }

@@ -7,21 +7,23 @@ let package = Package(
     targets: [
         // Cleanup rules, the run report, and the paths both front-ends share.
         .target(name: "JanitorCore", path: "Sources/JanitorCore"),
-        // The CLI launchd runs periodically.
+        // `janitor run`, shared by the CLI and the app's headless mode.
+        .target(name: "JanitorCLI", dependencies: ["JanitorCore"], path: "Sources/JanitorCLI"),
+        // The CLI, for developers; the app bundle runs its own executable instead.
         .executableTarget(
             name: "janitor",
-            dependencies: ["JanitorCore"],
+            dependencies: ["JanitorCLI"],
             path: "Sources/janitor"
         ),
-        // The menu-bar applet: shows the last run and triggers the launchd job.
+        // The menu-bar app; with `run ...` arguments it is the CLI.
         .executableTarget(
             name: "MacJanitor",
-            dependencies: ["JanitorCore"],
+            dependencies: ["JanitorCore", "JanitorCLI"],
             path: "Sources/MacJanitor"
         ),
         .testTarget(
             name: "JanitorCoreTests",
-            dependencies: ["JanitorCore"],
+            dependencies: ["JanitorCore", "JanitorCLI"],
             path: "Tests/JanitorCoreTests"
         ),
     ]

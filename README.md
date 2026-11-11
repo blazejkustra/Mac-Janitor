@@ -1,9 +1,10 @@
 # Mac Janitor
 
-Keeps the disk from filling up with agent leftovers, build output, caches and the Trash. One LaunchAgent wakes the
-`janitor` CLI hourly; it runs every 6 hours, or at once when free space drops
-below 20 GB. A menu-bar applet previews what would go, cleans on demand and holds
-the settings.
+Keeps the disk from filling up with agent leftovers, build output, caches and the Trash. A menu-bar
+app previews what would go, cleans on demand and holds the settings. A first-run setup window
+explains what it does, walks through Full Disk Access and asks whether to clean automatically.
+Automatic cleaning stays off until you turn it on; then a LaunchAgent inside the app bundle wakes
+the app's own executable hourly, which cleans every 6 hours, or at once when free space drops below 20 GB.
 
 ## What it removes
 
@@ -27,11 +28,12 @@ no build makes again. Build output and large files are found in one walk of the 
 folder, skipping `~/Library`, the Trash and the cache folders.
 
 No walk enters `~/Music` or `~/Pictures` (media libraries). The Trash, Desktop, Documents and
-Downloads take Full Disk Access: add `MacJanitor.app` and `MacJanitor.app/Contents/MacOS/janitor`
-under System Settings > Privacy & Security > Full Disk Access. Without it a run skips them and
-reports an issue; it never makes macOS ask. `build-app.sh` signs both with your Apple Development
-or Developer ID certificate (or `MACJANITOR_SIGN_IDENTITY`), so the grant survives rebuilds;
-signed ad hoc, every rebuild is a new app to macOS.
+Downloads take Full Disk Access: add `Mac Janitor.app` under System Settings > Privacy & Security >
+Full Disk Access (the setup window opens that pane and shows when the grant lands). Previews, cleans
+and scheduled runs all run the app's own executable, so that one entry covers them. Without it a run
+skips those folders and reports an issue; it never makes macOS ask. `build-app.sh` signs the app with
+your Apple Development or Developer ID certificate (or `MACJANITOR_SIGN_IDENTITY`), so the grant
+survives rebuilds; signed ad hoc, every rebuild is a new app to macOS.
 
 Removing a big tree costs one metadata update per file, minutes for millions of them. A clean
 from the applet therefore plans only the targets it acts on, without measuring them again, renames each into
@@ -74,18 +76,19 @@ or `.claude/settings.local.json`) are not kept.
 ## Layout
 
 - `Sources/JanitorCore` - rules, guards, config, the run report
-- `Sources/janitor` - the CLI launchd runs
-- `Sources/MacJanitor` - the menu-bar applet
+- `Sources/JanitorCLI` - `janitor run ...`, shared by the CLI and the app's headless mode
+- `Sources/janitor` - the CLI, for developers
+- `Sources/MacJanitor` - the menu-bar app; `MacJanitor run ...` is the CLI
 - `install/` - build, install and uninstall scripts
 
 ## Use
 
 ```sh
-./install/install.sh                  # build, install the LaunchAgent, start the applet
+./install/install.sh                  # build build/Mac Janitor.app and open it (setup runs on first launch)
 .build/release/janitor run --dry-run  # print the plan, delete nothing
-launchctl kickstart gui/$(id -u)/com.ignacy.mac-janitor   # wake the job now
-./install/uninstall.sh
+./install/uninstall.sh                # remove the LaunchAgent older installs wrote
 swift test
+swift run MacJanitor --snapshot /tmp/shots   # render the panel, settings and setup to PNGs
 ```
 
 The report of the last real run is `~/Library/Application Support/MacJanitor/last-run.json`,
