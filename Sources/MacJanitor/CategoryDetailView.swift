@@ -17,7 +17,7 @@ struct CategoryDetailView: View {
             ForEach(store.issues(category), id: \.self) { issue in
                 Label(ProblemBanner.shorten(issue), systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Palette.warning)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 8)
             }
@@ -63,9 +63,9 @@ private struct DetailHeader: View {
             .help("Back (Esc)")
             .pointingCursor()
             HStack(alignment: .center, spacing: 12) {
-                IconTile(symbol: category.symbol, tint: category.tint, size: 40)
+                IconTile(symbol: category.symbol, size: 40)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(category.title).font(.system(size: 17, weight: .bold))
+                    Text(category.title).font(.system(size: 17, weight: .semibold))
                     Text(bytes > 0 ? "\(Format.bytes(bytes)) in \(count) items" : "Nothing to remove")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
@@ -89,7 +89,7 @@ private struct EmptyCategory: View {
                 ProgressView().controlSize(.small)
                 Text("Still checking…").font(.system(size: 12)).foregroundStyle(.secondary)
             } else {
-                Image(systemName: "checkmark.circle.fill").font(.system(size: 24)).foregroundStyle(.green)
+                Image(systemName: "checkmark.circle").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.icon)
                 Text("Nothing to remove here right now").font(.system(size: 12)).foregroundStyle(.secondary)
             }
         }
@@ -125,7 +125,7 @@ private struct ItemRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.label.title)
                     .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(item.kind == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
+                    .foregroundStyle(item.kind == .failed ? AnyShapeStyle(Palette.critical) : AnyShapeStyle(.primary))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if !item.label.context.isEmpty {
@@ -137,14 +137,14 @@ private struct ItemRow: View {
                 }
                 Text(Format.sentence(item.detail))
                     .font(.system(size: 11))
-                    .foregroundStyle(item.kind == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
+                    .foregroundStyle(item.kind == .failed ? AnyShapeStyle(Palette.critical) : AnyShapeStyle(.tertiary))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
             if item.bytes > 0 {
                 Text(Format.bytes(item.bytes))
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold))
                     .monospacedDigit()
             }
             ItemActions(item: item, hovering: hovering)
@@ -178,7 +178,7 @@ private struct ItemActions: View {
             case .planned, .failed:
                 IconButton(symbol: "pin", label: "Keep this") { store.pin(item.target) }
             case .kept:
-                IconButton(symbol: "pin.fill", label: "Stop keeping this", tint: .orange) { store.unpin(item.target) }
+                IconButton(symbol: "pin.fill", label: "Stop keeping this", tint: Palette.accent) { store.unpin(item.target) }
             case .pending:
                 Image(systemName: "hourglass").foregroundStyle(.tertiary).frame(width: 22, height: 22)
             case .guarded:

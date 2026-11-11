@@ -63,7 +63,7 @@ private struct HeroCard: View {
                 Text("\(Format.bytes(store.freeBytes)) free of \(Format.bytes(store.totalBytes))"
                      + (store.isLowDisk ? ", running low" : ""))
                     .font(.system(size: 11.5))
-                    .foregroundStyle(store.isLowDisk ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(store.isLowDisk ? AnyShapeStyle(Palette.critical) : AnyShapeStyle(.secondary))
             }
             .padding(.trailing, 22)
             Spacer(minLength: 0)
@@ -86,7 +86,8 @@ private struct HeroCard: View {
 
     private var ringTint: Color {
         if scanning { return Palette.accent }
-        return store.isLowDisk ? .red : store.usedFraction > 0.85 ? .orange : Palette.accent
+        if store.isLowDisk { return Palette.critical }
+        return store.usedFraction > 0.95 ? Palette.warning : Palette.accent
     }
 
     @ViewBuilder
@@ -95,12 +96,12 @@ private struct HeroCard: View {
             Image(systemName: "magnifyingglass").font(.system(size: 18, weight: .semibold)).foregroundStyle(.secondary)
         } else if scanning {
             Text("\(Int(store.scanProgress * 100))%")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: 13, weight: .semibold))
                 .monospacedDigit()
         } else {
             VStack(spacing: 0) {
                 Text("\(Int(store.usedFraction * 100))%")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold))
                     .monospacedDigit()
                 Text("used").font(.system(size: 9)).foregroundStyle(.secondary)
             }
@@ -152,7 +153,8 @@ private struct BigNumber: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(text)
-                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .font(.system(size: 26, weight: .semibold))
+                .tracking(-0.4)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -167,7 +169,7 @@ private struct BigNumber: View {
 private struct AccessBanner: View {
     var body: some View {
         HStack(spacing: 10) {
-            IconTile(symbol: "lock.shield.fill", tint: .indigo, size: 28)
+            IconTile(symbol: "lock.shield", size: 28, symbolStyle: Palette.warning)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Full Disk Access is off").font(.system(size: 12, weight: .semibold))
                 Text("Desktop, Documents, Downloads and the Trash are skipped.")
@@ -182,7 +184,7 @@ private struct AccessBanner: View {
         }
         .padding(10)
         .background(Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.orange.opacity(0.35)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.stroke))
     }
 }
 
@@ -207,10 +209,10 @@ struct ProblemBanner: View {
             IconButton(symbol: "xmark", label: "Dismiss", action: dismiss)
         }
         .font(.caption)
-        .foregroundStyle(.red)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+        .foregroundStyle(Palette.critical)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Palette.critical.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -224,7 +226,7 @@ private struct CategoryGrid: View {
     }
 }
 
-/// A category as a tile: its colour, how much it would free, and its name.
+/// A category as a tile: its symbol, how much it would free, and its name.
 private struct CategoryTile: View {
     @EnvironmentObject private var store: Store
     let category: JanitorCore.Category
@@ -233,13 +235,17 @@ private struct CategoryTile: View {
     var body: some View {
         let bytes = store.plannedBytes(category)
         let covered = store.covers(category)
+        let empty = covered && bytes == 0
         Button { store.selected = category } label: {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top) {
-                    IconTile(symbol: category.symbol, tint: category.tint, size: 26)
+                    Image(systemName: category.symbol)
+                        .font(.system(size: 14))
+                        .foregroundStyle(empty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Palette.icon))
+                        .frame(height: 18)
                     Spacer()
                     if !store.issues(category).isEmpty {
-                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10)).foregroundStyle(.orange)
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10)).foregroundStyle(Palette.warning)
                     }
                 }
                 Spacer(minLength: 8)
@@ -251,13 +257,11 @@ private struct CategoryTile: View {
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+            .padding(11)
+            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
             .background(hovering ? Palette.cardHover : Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.stroke))
-            .opacity(covered && bytes == 0 ? 0.6 : 1)
-            .scaleEffect(hovering ? 1.02 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: hovering)
+            .animation(.easeOut(duration: 0.12), value: hovering)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -270,7 +274,7 @@ private struct CategoryTile: View {
     private func sizeText(bytes: Int64, covered: Bool) -> some View {
         if covered {
             Text(bytes > 0 ? Format.bytes(bytes) : "None")
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .font(.system(size: 17, weight: .semibold))
                 .monospacedDigit()
                 .foregroundStyle(bytes > 0 ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
         } else {
@@ -337,7 +341,9 @@ private struct CleanConfirmation: View {
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(groups, id: \.0) { category, items in
                     HStack(spacing: 8) {
-                        IconTile(symbol: category.symbol, tint: category.tint, size: 18)
+                        Image(systemName: category.symbol)
+                            .foregroundStyle(Palette.icon)
+                            .frame(width: 18)
                         Text(category.title)
                         Spacer()
                         Text(Format.bytes(items.reduce(0) { $0 + $1.bytes })).monospacedDigit().foregroundStyle(.secondary)
@@ -356,7 +362,7 @@ private struct CleanConfirmation: View {
                     .pointingCursor()
                 Spacer()
                 Button("Clean now") { Task { await store.clean() } }
-                    .buttonStyle(PillButtonStyle(tint: .red))
+                    .buttonStyle(PillButtonStyle(tint: Palette.criticalFill))
                     .keyboardShortcut(.defaultAction)
                     .pointingCursor()
             }
@@ -375,7 +381,7 @@ private struct FooterView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Circle().fill(store.automatic ? Color.green : Color.secondary.opacity(0.5)).frame(width: 7, height: 7)
+                Circle().fill(store.automatic ? Palette.accent : Palette.icon.opacity(0.5)).frame(width: 6, height: 6)
                 Text(scheduleText).lineLimit(1)
                 Spacer()
                 Button(store.automatic ? "Pause" : "Turn on") { toggleAutomatic() }

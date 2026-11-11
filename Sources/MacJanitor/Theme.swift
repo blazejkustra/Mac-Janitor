@@ -13,7 +13,17 @@ enum Palette {
     /// Glacier blue from the app icon, a shade lighter in dark mode.
     static let accent = dynamic(dark: NSColor(srgbRed: 0.25, green: 0.55, blue: 0.75, alpha: 1),
                                 light: NSColor(srgbRed: 0.15, green: 0.40, blue: 0.58, alpha: 1))
+    static let accentFill = dynamic(dark: NSColor(srgbRed: 0.18, green: 0.44, blue: 0.63, alpha: 1),
+                                    light: NSColor(srgbRed: 0.15, green: 0.40, blue: 0.58, alpha: 1))
     static let track = dynamic(dark: NSColor(white: 1, alpha: 0.1), light: NSColor(white: 0, alpha: 0.08))
+    static let well = dynamic(dark: NSColor(white: 1, alpha: 0.08), light: NSColor(white: 0, alpha: 0.05))
+    static let icon = dynamic(dark: NSColor(white: 1, alpha: 0.6), light: NSColor(white: 0, alpha: 0.55))
+    static let warning = dynamic(dark: NSColor(srgbRed: 0.85, green: 0.64, blue: 0.25, alpha: 1),
+                                 light: NSColor(srgbRed: 0.72, green: 0.47, blue: 0.12, alpha: 1))
+    static let critical = dynamic(dark: NSColor(srgbRed: 0.90, green: 0.40, blue: 0.35, alpha: 1),
+                                  light: NSColor(srgbRed: 0.75, green: 0.22, blue: 0.17, alpha: 1))
+    static let criticalFill = dynamic(dark: NSColor(srgbRed: 0.70, green: 0.25, blue: 0.22, alpha: 1),
+                                      light: NSColor(srgbRed: 0.75, green: 0.22, blue: 0.17, alpha: 1))
 
     private static func dynamic(dark: NSColor, light: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
@@ -22,35 +32,19 @@ enum Palette {
     }
 }
 
-extension JanitorCore.Category {
-    var tint: Color {
-        switch self {
-        case .worktree: return .indigo
-        case .nodeModules: return .green
-        case .dockerImage: return .blue
-        case .avd: return .teal
-        case .scratchpad: return .purple
-        case .build: return .orange
-        case .cache: return .pink
-        case .trash: return .gray
-        case .largeFile: return .cyan
-        }
-    }
-}
-
-/// A rounded square in a colour with a white symbol: how every section is marked.
+/// A neutral rounded square with a monochrome symbol: how every section is marked.
 struct IconTile: View {
     let symbol: String
-    let tint: Color
     var size: CGFloat = 26
+    var symbolStyle: Color = Palette.icon
 
     var body: some View {
         RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-            .fill(tint.gradient)
+            .fill(Palette.well)
             .overlay(
                 Image(systemName: symbol)
-                    .font(.system(size: size * 0.5, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: size * 0.46, weight: .medium))
+                    .foregroundStyle(symbolStyle)
             )
             .frame(width: size, height: size)
     }
@@ -85,12 +79,12 @@ private struct DividedLayout: _VariadicView_MultiViewRoot {
 struct SettingRow<Trailing: View>: View {
     let title: String
     var detail: String?
-    var tile: (symbol: String, tint: Color)?
+    var symbol: String?
     @ViewBuilder let trailing: Trailing
 
     var body: some View {
         HStack(spacing: 12) {
-            if let tile { IconTile(symbol: tile.symbol, tint: tile.tint, size: 28) }
+            if let symbol { IconTile(symbol: symbol, size: 28) }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 13, weight: .semibold))
                 if let detail {
@@ -155,19 +149,19 @@ struct Footnote: View {
     }
 }
 
-/// "Granted" in green or "Off" in orange, as a capsule.
+/// "Granted" with an accent dot or "Off" with an amber one, in a neutral capsule.
 struct StatusPill: View {
     let text: String
     let good: Bool
 
     var body: some View {
-        HStack(spacing: 4) {
-            Circle().fill(good ? Color.green : Color.orange).frame(width: 6, height: 6)
+        HStack(spacing: 5) {
+            Circle().fill(good ? Palette.accent : Palette.warning).frame(width: 6, height: 6)
             Text(text).font(.system(size: 11, weight: .medium))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .background((good ? Color.green : Color.orange).opacity(0.15), in: Capsule())
+        .background(Palette.well, in: Capsule())
     }
 }
 
@@ -183,7 +177,7 @@ struct Ring<Center: View>: View {
             Circle().stroke(Palette.track, lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: min(max(fraction, 0), 1))
-                .stroke(tint.gradient, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.easeOut(duration: 0.4), value: fraction)
             center
@@ -203,7 +197,7 @@ struct SpinningRing<Center: View>: View {
                 Circle().stroke(Palette.track, lineWidth: lineWidth)
                 Circle()
                     .trim(from: 0, to: 0.22)
-                    .stroke(Palette.accent.gradient, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(Palette.accent, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .rotationEffect(.degrees(turn * 360 - 90))
                 center
             }
@@ -213,7 +207,7 @@ struct SpinningRing<Center: View>: View {
 
 /// The large pill buttons used for the main action of a view.
 struct PillButtonStyle: ButtonStyle {
-    var tint: Color = Palette.accent
+    var tint: Color = Palette.accentFill
     var active = false
     @Environment(\.isEnabled) private var isEnabled
 
@@ -224,9 +218,9 @@ struct PillButtonStyle: ButtonStyle {
             .foregroundStyle(lit ? AnyShapeStyle(.white) : AnyShapeStyle(.tertiary))
             .padding(.horizontal, 16)
             .frame(height: 36)
-            .background(lit ? AnyShapeStyle(tint.gradient) : AnyShapeStyle(Palette.card),
+            .background(lit ? AnyShapeStyle(tint) : AnyShapeStyle(Palette.well),
                         in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.black.opacity(configuration.isPressed ? 0.15 : 0)))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.black.opacity(configuration.isPressed ? 0.12 : 0)))
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
@@ -238,7 +232,7 @@ struct SoftButtonStyle: ButtonStyle {
             .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, 12)
             .frame(height: 26)
-            .background(Palette.selection, in: Capsule())
+            .background(Palette.well, in: Capsule())
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Capsule())
     }
@@ -257,11 +251,10 @@ struct SidebarMaterial: NSViewRepresentable {
     func updateNSView(_ view: NSVisualEffectView, context: Context) {}
 }
 
-/// One row of a window sidebar: a coloured tile, a name and a soft highlight when selected.
+/// One row of a window sidebar: a symbol, a name and a soft highlight when selected.
 struct SidebarItem: View {
     let title: String
     let symbol: String
-    let tint: Color
     let selected: Bool
     var done = false
     let action: () -> Void
@@ -270,7 +263,8 @@ struct SidebarItem: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                IconTile(symbol: done ? "checkmark" : symbol, tint: done ? .green : tint, size: 24)
+                IconTile(symbol: done ? "checkmark" : symbol, size: 24,
+                         symbolStyle: done ? Palette.accent : selected ? .primary : Palette.icon)
                 Text(title).font(.system(size: 13, weight: selected ? .semibold : .regular))
                 Spacer()
             }
@@ -306,7 +300,7 @@ struct AppMark: View {
         if let icon = Self.icon {
             Image(nsImage: icon).resizable().frame(width: size, height: size)
         } else {
-            IconTile(symbol: "trash.fill", tint: Palette.accent, size: size)
+            IconTile(symbol: "trash.fill", size: size, symbolStyle: Palette.accent)
         }
     }
 }
