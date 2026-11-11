@@ -82,8 +82,8 @@ or `.claude/settings.local.json`) are not kept.
 - `install/` - build, install and uninstall scripts
 - `scripts/icons.swift` - draws the app icon and menu-bar glyph into `assets/`
   (`swift scripts/icons.swift appicon assets`, `... menubar assets`, `... logos <dir>` for the options sheet)
-- `site/` - the static marketing site; serve it with `python3 -m http.server -d site`. `scripts/site-art.swift`
-  renders its backdrop and video poster; drop a `site/assets/demo.mp4` in place to enable the video
+- `site/` - the static marketing site; serve it with `python3 -m http.server -d site`. `scripts/site-footage.sh`
+  cuts the background loops from the original footage; drop a `site/assets/demo.mp4` in place to enable the video
 
 ## Use
 
