@@ -1,4 +1,4 @@
-const PHOTOS = ['dunes', 'river', 'coast'];
+const PHOTOS = ['mist', 'glacier', 'aurora', 'ridge', 'moss', 'river', 'coast'];
 const DEFAULT_PHOTO = PHOTOS[0];
 
 function chosenPhoto() {
