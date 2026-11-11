@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds the site's hero photo, demo poster and social card from the Unsplash original (see site/assets/photos/README.md).
-# Usage: scripts/site-photos.sh <folder with the original, named glacier.jpg>
+# Builds the site's hero photos, demo poster and social card from the originals (see site/assets/photos/README.md).
+# Usage: scripts/site-photos.sh <folder with the originals, named glacier.jpg and ice.png>
 set -euo pipefail
 SRC="${1:?folder with the original photo}"
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
@@ -18,16 +18,22 @@ encode() {
   rm "$frame"
 }
 
+original() {
+  ls "$SRC/$1".* | head -n 1
+}
+
 wide() {
-  encode "$SRC/$1.jpg" "$1-2560" "crop=iw:min(ih\,iw*10/16),scale=2560:1600:flags=lanczos"
+  encode "$(original "$1")" "$1-$2" "crop=iw:min(ih\,iw*10/16),scale=$2:-2:flags=lanczos"
 }
 
 tall() {
-  encode "$SRC/$1.jpg" "$1-1080" "crop=min(iw\,ih*2/3):ih,scale=1080:1620:flags=lanczos"
+  encode "$(original "$1")" "$1-$2" "crop=min(iw\,ih*2/3):ih,scale=$2:-2:flags=lanczos"
 }
 
-wide glacier
-tall glacier
+wide glacier 2560
+tall glacier 1080
+wide ice 1672
+tall ice 720
 
 ffmpeg -v error -y -i "$OUT/glacier-2560.jpg" -i "$ROOT/site/assets/panel-dark.png" -filter_complex "
   [0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,eq=brightness=-0.18:saturation=0.85[bg];
