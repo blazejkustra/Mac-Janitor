@@ -1,0 +1,96 @@
+# On a v* tag: a Developer ID-signed, notarized and stapled DMG from scripts/release.sh, attached
+# to a draft release as MacJanitor-<version>.dmg and MacJanitor.dmg (the site links
+# releases/latest/download/MacJanitor.dmg). A tag without MACOS_CERT_P12 fails: an unsigned DMG
+# must never become "latest". By hand (workflow_dispatch) without the certificate: an ad-hoc DMG
+# as a workflow artifact, no release.
+# Secrets: MACOS_CERT_P12 (Developer ID Application certificate and key, .p12, base64),
+# MACOS_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD (app-specific).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      HAS_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: A tag needs the certificate
+        if: env.HAS_CERT != 'true' && github.ref_type == 'tag'
+        run: |
+          echo "::error::No MACOS_CERT_P12 secret: a release tag must be Developer ID-signed. Add the signing secrets and re-run, or run the workflow by hand for an ad-hoc DMG."
+          exit 1
+
+      - name: Tag matches VERSION
+        if: github.ref_type == 'tag'
+        run: |
+          if [ "$GITHUB_REF_NAME" != "v$(cat VERSION)" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match VERSION $(cat VERSION)."
+            exit 1
+          fi
+
+      - name: Signing keychain
+        if: env.HAS_CERT == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set +x
+          KC="$RUNNER_TEMP/macjanitor-signing.keychain-db"
+          KC_PASS="$(openssl rand -hex 24)"
+          security create-keychain -p "$KC_PASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PASS" "$KC"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PASS" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          xcrun notarytool store-credentials macjanitor-notary --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --keychain "$KC"
+          echo "MACJANITOR_NOTARY_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+
+      - name: Signed DMG
+        if: env.HAS_CERT == 'true'
+        env:
+          MACJANITOR_NOTARY_PROFILE: macjanitor-notary
+        run: ./scripts/release.sh
+
+      - name: Ad-hoc DMG (by hand only)
+        if: env.HAS_CERT != 'true' && github.ref_type != 'tag'
+        run: |
+          echo "::warning::No MACOS_CERT_P12 secret: an ad-hoc signed DMG, not notarized."
+          ./scripts/release.sh --adhoc
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MacJanitor-dmg
+          path: release/*.dmg
+
+      - name: Draft release
+        if: env.HAS_CERT == 'true' && github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "::notice::Release $GITHUB_REF_NAME already exists; its files were left as they are. The signed DMGs are in this run's artifact."
+            exit 0
+          fi
+          gh release create "$GITHUB_REF_NAME" release/*.dmg --draft --title "Mac Janitor $GITHUB_REF_NAME" --generate-notes
+
+      - name: Remove the signing keychain
+        if: always() && env.MACJANITOR_NOTARY_KEYCHAIN != ''
+        run: security delete-keychain "$MACJANITOR_NOTARY_KEYCHAIN"

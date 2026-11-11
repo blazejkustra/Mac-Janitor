@@ -3,16 +3,21 @@
 # The bundle carries the LaunchAgent that runs its own executable headless
 # (Contents/Library/LaunchAgents), registered from the app's setup.
 # Usage: ./install/build-app.sh     then: open "build/Mac Janitor.app"
+# MACJANITOR_ARCHS="arm64 x86_64" builds a universal binary.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BUNDLE_ID="${MACJANITOR_BUNDLE_ID:-com.blazejkustra.macjanitor}"
 APP="build/Mac Janitor.app"
+VERSION="$(cat VERSION)"
+BUILD="${MACJANITOR_BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
+ARCH_FLAGS=""
+for arch in ${MACJANITOR_ARCHS:-}; do ARCH_FLAGS="$ARCH_FLAGS --arch $arch"; done
 
-echo "Building release..."
-swift build -c release --product MacJanitor
-BIN_DIR="$(swift build -c release --show-bin-path)"
+echo "Building release $VERSION ($BUILD)${MACJANITOR_ARCHS:+ for $MACJANITOR_ARCHS}..."
+swift build -c release $ARCH_FLAGS --product MacJanitor
+BIN_DIR="$(swift build -c release $ARCH_FLAGS --show-bin-path)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/LaunchAgents"
@@ -32,8 +37,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>MacJanitor</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
+  <key>CFBundleVersion</key><string>$BUILD</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
 </dict>
