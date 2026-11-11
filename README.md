@@ -8,7 +8,7 @@ Mac Janitor clears the leftovers that coding agents and dev tools pile up on you
 
 <img src="./site/assets/demo-poster.jpg" alt="The Mac Janitor menu-bar panel: 17.7 GB can be freed, with each category as a tile" />
 
-[![Download for macOS](https://img.shields.io/badge/Download_for_macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/blazejkustra/Mac-Janitor/releases/latest)
+[![Download for macOS](https://img.shields.io/badge/Download_for_macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/blazejkustra/Mac-Janitor/releases)
 
 macOS 13 or later, Apple silicon and Intel.
 
@@ -122,7 +122,13 @@ or `.claude/settings.local.json`) are not kept.
 swift test
 .build/release/janitor run --dry-run    # print the plan, delete nothing
 swift run MacJanitor --snapshot /tmp/shots
+./scripts/release.sh                    # universal, Developer ID-signed, notarized DMG in release/
 ```
+
+Releases: bump `VERSION`, push a `v<version>` tag, and `.github/workflows/release.yml` drafts a
+release with the notarized DMG. It needs the `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `APPLE_ID`,
+`APPLE_TEAM_ID` and `APPLE_APP_PASSWORD` secrets. `./scripts/release.sh --adhoc` makes an unsigned
+test DMG.
 
 <details>
 <summary>Layout and files</summary>
