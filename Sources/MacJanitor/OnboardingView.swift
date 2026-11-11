@@ -27,14 +27,6 @@ final class OnboardingModel: ObservableObject {
             }
         }
 
-        var tint: Color {
-            switch self {
-            case .welcome: return .pink
-            case .access: return .indigo
-            case .schedule: return .blue
-            case .done: return .green
-            }
-        }
     }
 
     @Published var step: Step = .welcome
@@ -67,7 +59,7 @@ struct OnboardingView: View {
     var body: some View {
         SidebarWindowLayout {
             ForEach(OnboardingModel.Step.allCases, id: \.self) { step in
-                SidebarItem(title: step.title, symbol: step.symbol, tint: step.tint, selected: step == model.step,
+                SidebarItem(title: step.title, symbol: step.symbol, selected: step == model.step,
                             done: isDone(step)) { model.step = step }
             }
             Spacer()
@@ -92,6 +84,7 @@ struct OnboardingView: View {
             .padding(.bottom, 24)
         }
         .frame(width: 800, height: 600)
+        .tint(Palette.accent)
     }
 
     private func isDone(_ step: OnboardingModel.Step) -> Bool {
@@ -165,7 +158,7 @@ private struct WelcomeStep: View {
         HStack(spacing: 10) {
             ForEach([JanitorCore.Category.worktree, .nodeModules, .build, .cache, .dockerImage, .trash], id: \.self) { c in
                 VStack(spacing: 8) {
-                    IconTile(symbol: c.symbol, tint: c.tint, size: 34)
+                    IconTile(symbol: c.symbol, size: 34)
                     Text(c.title)
                         .font(.system(size: 11, weight: .medium))
                         .multilineTextAlignment(.center)
@@ -183,13 +176,13 @@ private struct WelcomeStep: View {
         Card {
             SettingRow(title: "Anything in use or kept",
                        detail: "Files open in a running app, and anything you pin.",
-                       tile: ("hand.raised.fill", .gray)) { EmptyView() }
+                       symbol: "hand.raised.fill") { EmptyView() }
             SettingRow(title: "Your work",
                        detail: "Unpushed commits stay. Uncommitted changes are saved to a patch first.",
-                       tile: ("arrow.triangle.branch", .indigo)) { EmptyView() }
+                       symbol: "arrow.triangle.branch") { EmptyView() }
             SettingRow(title: "Nothing happens on its own",
                        detail: "Automatic cleaning stays off until you turn it on.",
-                       tile: ("pause.fill", .blue)) { EmptyView() }
+                       symbol: "pause.fill") { EmptyView() }
         }
     }
 }
@@ -206,7 +199,7 @@ private struct AccessStep: View {
             SettingRow(title: "Full Disk Access",
                        detail: store.fullDiskAccess ? "Granted. Everything can be checked."
                            : "Not granted yet. This updates by itself.",
-                       tile: ("lock.shield.fill", .indigo)) {
+                       symbol: "lock.shield.fill") {
                 StatusPill(text: store.fullDiskAccess ? "Granted" : "Waiting", good: store.fullDiskAccess)
             }
         }
@@ -243,7 +236,7 @@ private struct StepRow<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             Text("\(n)")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.system(size: 12, weight: .semibold))
                 .frame(width: 24, height: 24)
                 .background(Palette.selection, in: Circle())
             Text(text)
@@ -347,10 +340,10 @@ private struct DoneStep: View {
             SettingRow(title: "Full Disk Access",
                        detail: store.fullDiskAccess ? "Everything can be checked."
                            : "Desktop, Documents, Downloads and the Trash are skipped.",
-                       tile: ("lock.shield.fill", .indigo)) {
+                       symbol: "lock.shield.fill") {
                 StatusPill(text: store.fullDiskAccess ? "Granted" : "Off", good: store.fullDiskAccess)
             }
-            SettingRow(title: "Automatic cleaning", detail: automaticDetail, tile: ("clock.fill", .blue)) {
+            SettingRow(title: "Automatic cleaning", detail: automaticDetail, symbol: "clock.fill") {
                 if store.agentStatus == .requiresApproval {
                     Button("Allow") { SMAppService.openSystemSettingsLoginItems() }
                         .buttonStyle(SoftButtonStyle())

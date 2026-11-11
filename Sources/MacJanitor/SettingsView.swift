@@ -28,16 +28,6 @@ enum SettingsPage: String, CaseIterable {
         }
     }
 
-    var tint: Color {
-        switch self {
-        case .general: return .gray
-        case .schedule: return .blue
-        case .categories: return .green
-        case .kept: return .orange
-        case .permissions: return .indigo
-        case .about: return .gray
-        }
-    }
 }
 
 struct SettingsView: View {
@@ -47,7 +37,7 @@ struct SettingsView: View {
     var body: some View {
         SidebarWindowLayout {
             ForEach(SettingsPage.allCases, id: \.self) { p in
-                SidebarItem(title: p.title, symbol: p.symbol, tint: p.tint, selected: p == page) { page = p }
+                SidebarItem(title: p.title, symbol: p.symbol, selected: p == page) { page = p }
             }
             Spacer()
             AppSignature().padding(.horizontal, 8)
@@ -66,6 +56,7 @@ struct SettingsView: View {
             }
         }
         .frame(width: 760, height: 560)
+        .tint(Palette.accent)
         .task { await store.refreshAccess() }
     }
 
@@ -179,7 +170,7 @@ private struct CategoryCard: View {
         let enabled = store.config.enabled(category)
         Card {
             SettingRow(title: category.title, detail: category.explanation(store.config),
-                       tile: (category.symbol, category.tint)) {
+                       symbol: category.symbol) {
                 BigToggle(isOn: Binding(get: { enabled }, set: { store.setEnabled(category, $0) }))
             }
             if enabled {
@@ -231,8 +222,8 @@ private struct KeptTile: View {
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: symbol)
-                .font(.system(size: 24))
-                .foregroundStyle(.orange)
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(Palette.icon)
                 .frame(height: 30)
             Text((target as NSString).lastPathComponent)
                 .font(.system(size: 11, weight: .medium))
@@ -293,7 +284,7 @@ private struct PermissionsPage: View {
             SettingRow(title: "Full Disk Access",
                        detail: store.fullDiskAccess ? "Desktop, Documents, Downloads and the Trash can be checked."
                            : "Desktop, Documents, Downloads and the Trash are skipped until you allow it.",
-                       tile: ("lock.shield.fill", .indigo)) {
+                       symbol: "lock.shield.fill") {
                 HStack(spacing: 8) {
                     StatusPill(text: store.fullDiskAccess ? "Granted" : "Off", good: store.fullDiskAccess)
                     if !store.fullDiskAccess {
@@ -302,7 +293,7 @@ private struct PermissionsPage: View {
                     }
                 }
             }
-            SettingRow(title: "Background cleaning", detail: backgroundDetail, tile: ("clock.fill", .blue)) {
+            SettingRow(title: "Background cleaning", detail: backgroundDetail, symbol: "clock.fill") {
                 HStack(spacing: 8) {
                     StatusPill(text: backgroundStatus, good: store.agentStatus == .enabled)
                     if store.agentStatus == .requiresApproval {

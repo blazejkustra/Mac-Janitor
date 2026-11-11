@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How Mac Janitor works</title>
+<meta name="description" content="What Mac Janitor clears after your coding agents, what it leaves alone while they work and answers to common questions.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="How Mac Janitor works">
+<meta property="og:image" content="https://blazejkustra.github.io/Mac-Janitor/assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/icon-256.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="page">
+<header class="nav wrap">
+  <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="30" height="30">Mac Janitor</a>
+  <nav class="links" aria-label="Site">
+    <a href="#cleans">What it cleans</a>
+    <a href="#faq">Questions</a>
+    <a class="home-link" href="./">Download</a>
+    <a class="icon" href="https://github.com/blazejkustra/Mac-Janitor" aria-label="Source on GitHub">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+    </a>
+    <a class="icon" href="https://x.com/blazejkustra_" aria-label="Błażej Kustra on X">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    </a>
+  </nav>
+</header>
+
+<main>
+  <section class="intro-page wrap">
+    <h1>How Mac Janitor works</h1>
+    <p class="lede">What it clears after your agents, what it leaves alone while they work and answers to common questions.</p>
+  </section>
+
+  <section class="band wrap" id="cleans">
+    <div class="split">
+      <div>
+        <h2>What it cleans</h2>
+        <p class="sub">Each agent task tends to get its own git worktree, and each worktree grows its own dependencies and build output. Mac Janitor removes the copies that are done with. Each rule waits until an item has sat unused for a while.</p>
+        <ul class="list">
+          <li><b>Finished worktrees.</b> Merged into main with nothing left to push and idle for a day, or with an open PR and untouched for 3 days, or untouched for 30 days. Your main checkout and your branches stay.</li>
+          <li><b>node_modules in worktrees</b> nobody opened for 3 days. The worktree itself stays, so you can pick the task back up with one install.</li>
+          <li><b>Build output</b> (node_modules, .next, Pods, Gradle, Cargo target, SwiftPM .build, Xcode build) in projects that have not changed for two weeks.</li>
+          <li><b>Caches</b> nothing has read for a month: Xcode DerivedData and DeviceSupport, simulator caches, the pnpm store, Gradle, npx, bun and Yarn caches.</li>
+          <li><b>Docker images</b> no container uses, and <b>Android emulators</b> left unused for a week.</li>
+          <li><b>Claude Code scratch folders</b> from sessions untouched for two weeks.</li>
+          <li><b>The Trash</b>, for items trashed over a week ago.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Safe while agents are running</h2>
+        <p class="sub">Agents work for hours without you watching. Every check runs again in the moment before a delete, so a folder that came into use during the scan is skipped.</p>
+        <ul class="list">
+          <li><b>Anything a running process has open or works in.</b> An agent working inside a worktree keeps that worktree, and everything in it, off the list.</li>
+          <li><b>New worktrees.</b> A merged worktree also has to sit idle for a day, so one an agent created minutes ago stays.</li>
+          <li><b>Unpushed commits.</b> A worktree with work no remote holds keeps it: uncommitted changes go to a patch and untracked files to an archive, both kept for 30 days, and loose commits get a git ref.</li>
+          <li><b>Anything a LaunchAgent points to,</b> and anything you pin, with everything inside it.</li>
+          <li><b>Your documents, photos and music.</b></li>
+          <li><b>Large files,</b> unless you pick them by hand. Then they go to the Trash.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq wrap" id="faq">
+    <h2>Questions</h2>
+    <div class="faq-list">
+      <details>
+        <summary>Will it delete a worktree an agent is still using?</summary>
+        <p>No. Right before each delete, Mac Janitor asks macOS which files and folders running processes have open or are working in. A worktree an agent is running in is skipped, and the clean lists it as in use. If that check fails, the run stops and deletes nothing.</p>
+      </details>
+      <details>
+        <summary>Which agents does it work with?</summary>
+        <p>Any tool that runs tasks in git worktrees, such as Claude Code, Codex, Cursor or your own scripts. It finds worktrees by asking git, wherever they live under your home folder, including hidden folders like .claude/worktrees. Scratch folder cleanup covers Claude Code sessions.</p>
+      </details>
+      <details>
+        <summary>I run a dozen agents at once. Will a scheduled clean get in their way?</summary>
+        <p>Scheduled cleans follow the same rules as a manual one, so anything in use is skipped. Automatic cleaning is off until you turn it on, and it can start early when free space drops below 20 GB.</p>
+      </details>
+      <details>
+        <summary>Does it use AI?</summary>
+        <p>No. Every decision comes from plain rules about age, git state and what is open, and you can read them in the source.</p>
+      </details>
+      <details>
+        <summary>Can I undo a clean?</summary>
+        <p>Deleted items are gone, except large files, which go to the Trash. Before a worktree goes, its uncommitted changes and small untracked files are saved for 30 days, and commits that no branch holds get a ref.</p>
+      </details>
+      <details>
+        <summary>Why does it need Full Disk Access?</summary>
+        <p>To look inside Desktop, Documents, Downloads and the Trash. It still works without it and skips those folders.</p>
+      </details>
+      <details>
+        <summary>Does it run in the background?</summary>
+        <p>Only if you turn on automatic cleaning. A small background job then checks every hour and cleans at the interval you choose, or sooner when free space runs low.</p>
+      </details>
+      <details>
+        <summary>Does it send anything anywhere?</summary>
+        <p>No. It reads your disk and asks git and gh about your own repos. Nothing leaves your Mac.</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer class="foot wrap">
+  <span class="brand small"><img src="assets/logo.svg" alt="" width="18" height="18">Mac Janitor</span>
+  <a href="https://github.com/blazejkustra/Mac-Janitor">Source on GitHub</a>
+  <span>macOS 13 or later</span>
+  <span class="credits">Cover photo from Unsplash by Tobias Keller</span>
+</footer>
+</body>
+</html>

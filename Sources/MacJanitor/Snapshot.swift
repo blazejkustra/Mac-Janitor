@@ -39,7 +39,12 @@ enum Snapshot {
             window.setContentSize(host.fittingSize)
         }
         settle(host)
-        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return nil }
+        let scale: CGFloat = 2
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(host.bounds.width * scale),
+                                         pixelsHigh: Int(host.bounds.height * scale), bitsPerSample: 8, samplesPerPixel: 4,
+                                         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0,
+                                         bitsPerPixel: 0) else { return nil }
+        rep.size = host.bounds.size
         host.cacheDisplay(in: host.bounds, to: rep)
         return rep.representation(using: .png, properties: [:])
     }

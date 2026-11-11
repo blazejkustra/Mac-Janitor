@@ -1,94 +1,26 @@
-// Draws the menu-bar glyph candidates and writes the one the app ships.
-// Usage: swift scripts/icons.swift menubar <out-dir>
+// Builds every icon from the two SVG masters in assets/: logo.svg (the mark) and menubar.svg (the glyph).
+// Usage: swift scripts/icons.swift build          writes the app icon, menu-bar glyph and site icons
+//        swift scripts/icons.swift sheets <dir>   writes the icon and menu-bar review sheets
 import AppKit
 
-// MARK: - Glyphs
+let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+let assets = root.appendingPathComponent("assets")
+let logoSVG = try! String(contentsOf: assets.appendingPathComponent("logo.svg"), encoding: .utf8)
 
-/// A monochrome 18 pt menu-bar glyph, drawn in black for a template image.
-struct Glyph {
-    let name: String
-    let draw: (CGContext) -> Void
+func image(svg: String) -> NSImage {
+    NSImage(data: Data(svg.utf8))!
 }
 
-let size = CGSize(width: 18, height: 18)
-
-func point(_ center: CGPoint, _ radius: CGFloat, _ degrees: CGFloat) -> CGPoint {
-    let r = degrees * .pi / 180
-    return CGPoint(x: center.x + radius * cos(r), y: center.y + radius * sin(r))
-}
-
-func strokeLine(_ ctx: CGContext, _ a: CGPoint, _ b: CGPoint, width: CGFloat) {
-    ctx.setLineWidth(width)
-    ctx.setLineCap(.round)
-    ctx.move(to: a)
-    ctx.addLine(to: b)
-    ctx.strokePath()
-}
-
-/// A disk ring with an opening at the top right; what was inside flies out of it.
-let sweptDisk = Glyph(name: "Swept disk") { ctx in
-    let c = CGPoint(x: 7.7, y: 7.7)
-    ctx.setLineWidth(2)
-    ctx.setLineCap(.round)
-    ctx.addArc(center: c, radius: 6.4, startAngle: 80 * .pi / 180, endAngle: 370 * .pi / 180, clockwise: false)
-    ctx.strokePath()
-    ctx.fillEllipse(in: CGRect(x: c.x - 2.3, y: c.y - 2.3, width: 4.6, height: 4.6))
-    for (distance, radius) in [(9.0, 1.4), (11.4, 1.1), (13.5, 0.85)] as [(CGFloat, CGFloat)] {
-        let p = point(c, distance, 45)
-        ctx.fillEllipse(in: CGRect(x: p.x - radius, y: p.y - radius, width: radius * 2, height: radius * 2))
-    }
-}
-
-/// A push broom on a slant with a little dust ahead of it.
-let broom = Glyph(name: "Broom") { ctx in
-    strokeLine(ctx, CGPoint(x: 16.4, y: 17.2), CGPoint(x: 9.6, y: 9.0), width: 2)
-    let collar = CGMutablePath()
-    collar.move(to: CGPoint(x: 6.9, y: 11.0))
-    collar.addLine(to: CGPoint(x: 11.9, y: 7.0))
-    collar.addLine(to: CGPoint(x: 10.9, y: 5.6))
-    collar.addLine(to: CGPoint(x: 5.6, y: 9.5))
-    collar.closeSubpath()
-    let bristles = CGMutablePath()
-    bristles.move(to: CGPoint(x: 5.0, y: 8.6))
-    bristles.addLine(to: CGPoint(x: 10.3, y: 4.7))
-    bristles.addLine(to: CGPoint(x: 8.6, y: 0.6))
-    bristles.addLine(to: CGPoint(x: 0.6, y: 5.6))
-    bristles.closeSubpath()
-    ctx.addPath(collar)
-    ctx.addPath(bristles)
-    ctx.fillPath()
-    for (x, y, r) in [(12.7, 2.0, 1.15), (15.2, 3.3, 0.95), (17.0, 1.5, 0.75)] as [(CGFloat, CGFloat, CGFloat)] {
-        ctx.fillEllipse(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
-    }
-}
-
-/// A drive whose fill is being swept out of its right side.
-let emptyingDrive = Glyph(name: "Emptying drive") { ctx in
-    let body = CGRect(x: 1.2, y: 4.2, width: 12.6, height: 9.6)
-    ctx.setLineWidth(1.6)
-    ctx.addPath(CGPath(roundedRect: body, cornerWidth: 2.6, cornerHeight: 2.6, transform: nil))
-    ctx.strokePath()
-    ctx.addPath(CGPath(roundedRect: CGRect(x: 3.6, y: 6.6, width: 4.2, height: 4.8), cornerWidth: 1, cornerHeight: 1, transform: nil))
-    ctx.fillPath()
-    for (y, from, to) in [(11.2, 10.0, 17.0), (9.0, 11.4, 16.4), (6.8, 10.0, 15.2)] as [(CGFloat, CGFloat, CGFloat)] {
-        strokeLine(ctx, CGPoint(x: from, y: y), CGPoint(x: to, y: y), width: 1.3)
-    }
-}
-
-let glyphs = [sweptDisk, broom, emptyingDrive]
-let shipped = broom
-
-// MARK: - Output
-
-func bitmap(_ pixels: CGSize, scale: CGFloat, _ draw: (CGContext) -> Void) -> NSBitmapImageRep {
-    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(pixels.width), pixelsHigh: Int(pixels.height),
-                               bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                               colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+func bitmap(_ pixels: Int, _ draw: (CGRect) -> Void) -> NSBitmapImageRep {
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
+                               samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                               bytesPerRow: 0, bitsPerPixel: 0)!
     NSGraphicsContext.saveGraphicsState()
     let context = NSGraphicsContext(bitmapImageRep: rep)!
     NSGraphicsContext.current = context
-    context.cgContext.scaleBy(x: scale, y: scale)
-    draw(context.cgContext)
+    context.imageInterpolation = .high
+    context.cgContext.clear(CGRect(x: 0, y: 0, width: pixels, height: pixels))
+    draw(CGRect(x: 0, y: 0, width: pixels, height: pixels))
     NSGraphicsContext.restoreGraphicsState()
     return rep
 }
@@ -98,95 +30,150 @@ func writePNG(_ rep: NSBitmapImageRep, _ url: URL) {
     print(url.path)
 }
 
-/// A one-page vector PDF, which AppKit scales crisply as a template image.
-func writePDF(_ glyph: Glyph, _ url: URL) {
-    var box = CGRect(origin: .zero, size: size)
+/// The mark on the macOS icon grid: an 824 pt plate in a 1024 canvas with a soft system-like shadow.
+func appIcon(_ mark: NSImage, pixels: Int) -> NSBitmapImageRep {
+    bitmap(pixels) { canvas in
+        let s = canvas.width / 1024
+        let ctx = NSGraphicsContext.current!.cgContext
+        ctx.setShadow(offset: CGSize(width: 0, height: -10 * s), blur: 24 * s, color: NSColor(white: 0, alpha: 0.3).cgColor)
+        mark.draw(in: NSRect(x: 100 * s, y: 100 * s, width: 824 * s, height: 824 * s))
+    }
+}
+
+func writeAppIcon(_ mark: NSImage, _ url: URL) {
+    let iconset = FileManager.default.temporaryDirectory.appendingPathComponent("AppIcon.iconset")
+    try? FileManager.default.removeItem(at: iconset)
+    try! FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
+    for points in [16, 32, 128, 256, 512] {
+        for scale in [1, 2] {
+            let name = scale == 1 ? "icon_\(points)x\(points).png" : "icon_\(points)x\(points)@2x.png"
+            try! appIcon(mark, pixels: points * scale).representation(using: .png, properties: [:])!
+                .write(to: iconset.appendingPathComponent(name))
+        }
+    }
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+    process.arguments = ["-c", "icns", iconset.path, "-o", url.path]
+    try! process.run()
+    process.waitUntilExit()
+    try? FileManager.default.removeItem(at: iconset)
+    print(url.path)
+}
+
+/// A one-page PDF of an image at `points`, which AppKit scales crisply.
+func writePDF(_ image: NSImage, points: CGFloat, _ url: URL) {
+    var box = CGRect(x: 0, y: 0, width: points, height: points)
     let ctx = CGContext(url as CFURL, mediaBox: &box, nil)!
     ctx.beginPDFPage(nil)
-    ctx.setFillColor(.black)
-    ctx.setStrokeColor(.black)
-    glyph.draw(ctx)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+    image.draw(in: box)
+    NSGraphicsContext.restoreGraphicsState()
     ctx.endPDFPage()
     ctx.closePDF()
     print(url.path)
 }
 
-/// Glyph drawn in `color` at `scale` (1 for @1x, 2 for @2x), offset into a larger canvas.
-func drawGlyph(_ glyph: Glyph, in ctx: CGContext, at origin: CGPoint, scale: CGFloat, color: NSColor) {
-    ctx.saveGState()
-    ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-    ctx.translateBy(x: origin.x, y: origin.y)
-    ctx.scaleBy(x: scale, y: scale)
-    ctx.setFillColor(color.cgColor)
-    ctx.setStrokeColor(color.cgColor)
-    glyph.draw(ctx)
-    ctx.endTransparencyLayer()
-    ctx.restoreGState()
+func build() {
+    let mark = image(svg: logoSVG)
+    writeAppIcon(mark, assets.appendingPathComponent("AppIcon.icns"))
+    writePDF(mark, points: 64, assets.appendingPathComponent("Logo.pdf"))
+    let glyph = image(svg: try! String(contentsOf: assets.appendingPathComponent("menubar.svg"), encoding: .utf8))
+    writePDF(glyph, points: 18, assets.appendingPathComponent("MenuBarIcon.pdf"))
+    let site = root.appendingPathComponent("site/assets")
+    try! logoSVG.write(to: site.appendingPathComponent("logo.svg"), atomically: true, encoding: .utf8)
+    writePNG(bitmap(256) { mark.draw(in: $0) }, site.appendingPathComponent("icon-256.png"))
+    writePNG(bitmap(64) { mark.draw(in: $0) }, site.appendingPathComponent("favicon.png"))
 }
 
-func drawText(_ text: String, at p: CGPoint, size: CGFloat, color: NSColor, weight: NSFont.Weight = .regular) {
-    NSAttributedString(string: text, attributes: [
-        .font: NSFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color,
-    ]).draw(at: p)
+// MARK: - Review sheets
+
+func text(_ s: String, _ p: CGPoint, _ size: CGFloat, _ color: NSColor, _ weight: NSFont.Weight = .regular) {
+    NSAttributedString(string: s, attributes: [.font: NSFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color]).draw(at: p)
 }
 
-func drawSymbol(_ name: String, at p: CGPoint, pointSize: CGFloat, color: NSColor) {
-    let config = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .regular)
-        .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
-    guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) else { return }
-    image.draw(at: p, from: .zero, operation: .sourceOver, fraction: 1)
+func sheet(width: CGFloat, height: CGFloat, background: NSColor, _ draw: () -> Void) -> NSBitmapImageRep {
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(width * 2), pixelsHigh: Int(height * 2), bitsPerSample: 8,
+                               samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                               bytesPerRow: 0, bitsPerPixel: 0)!
+    rep.size = NSSize(width: width, height: height)
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+    background.setFill()
+    NSRect(x: 0, y: 0, width: width, height: height).fill()
+    draw()
+    NSGraphicsContext.restoreGraphicsState()
+    return rep
 }
 
-/// Each candidate in a light and a dark menu bar beside common system items, at @2x, plus a large view.
-func menubarSheet(_ url: URL) {
-    let scale: CGFloat = 2
-    let rowHeight: CGFloat = 24 * scale
-    let width: CGFloat = 900
-    let height: CGFloat = 120 + CGFloat(glyphs.count) * 150
-    let rep = bitmap(CGSize(width: width, height: height), scale: 1) { ctx in
-        NSColor(white: 0.97, alpha: 1).setFill()
-        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        drawText("Menu-bar glyph options, real size at @2x", at: CGPoint(x: 40, y: height - 60), size: 26,
-                 color: .black, weight: .semibold)
-        for (i, glyph) in glyphs.enumerated() {
-            let top = height - 110 - CGFloat(i) * 150
-            let label = "\(i + 1). \(glyph.name)" + (glyph.name == shipped.name ? "  (shipped)" : "")
-            drawText(label, at: CGPoint(x: 40, y: top - 28), size: 18, color: .black, weight: .medium)
-            for (j, dark) in [false, true].enumerated() {
-                let strip = CGRect(x: 40 + CGFloat(j) * 330, y: top - 40 - rowHeight - 10, width: 310, height: rowHeight)
-                (dark ? NSColor(white: 0.13, alpha: 1) : NSColor(white: 0.9, alpha: 1)).setFill()
-                NSBezierPath(roundedRect: strip, xRadius: 10, yRadius: 10).fill()
-                let ink: NSColor = dark ? .white : .black
-                let y = strip.minY + (rowHeight - 18 * scale) / 2
-                drawSymbol("wifi", at: CGPoint(x: strip.minX + 24, y: y + 4), pointSize: 26, color: ink)
-                drawGlyph(glyph, in: ctx, at: CGPoint(x: strip.minX + 84, y: y), scale: scale, color: ink)
-                drawSymbol("battery.75percent", at: CGPoint(x: strip.minX + 140, y: y + 6), pointSize: 26, color: ink)
-                drawText("Tue 9:41", at: CGPoint(x: strip.minX + 210, y: y + 4), size: 26, color: ink)
+func picture(_ rep: NSBitmapImageRep, points: CGFloat) -> NSImage {
+    let image = NSImage(size: NSSize(width: points, height: points))
+    image.addRepresentation(rep)
+    return image
+}
+
+/// The icon at 360 pt, with the real 64, 32 and 16 pt renders (at 2x) on dark and light.
+func iconSheet(_ url: URL) {
+    let mark = image(svg: logoSVG)
+    let sizes: [CGFloat] = [64, 32, 16]
+    let rep = sheet(width: 440, height: 600, background: NSColor(white: 0.1, alpha: 1)) {
+        NSColor(white: 0.95, alpha: 1).setFill()
+        NSRect(x: 0, y: 0, width: 440, height: 92).fill()
+        mark.draw(in: NSRect(x: 40, y: 200, width: 360, height: 360))
+        for y: CGFloat in [120, 14] {
+            var x: CGFloat = 40
+            for points in sizes {
+                picture(appIcon(mark, pixels: Int(points) * 2), points: points).draw(in: NSRect(x: x, y: y, width: points, height: points))
+                x += points + 20
             }
-            let big = CGRect(x: 720, y: top - 140, width: 120, height: 120)
-            NSColor.white.setFill()
-            NSBezierPath(roundedRect: big, xRadius: 14, yRadius: 14).fill()
-            drawGlyph(glyph, in: ctx, at: CGPoint(x: big.minX + 6, y: big.minY + 6), scale: 6, color: .black)
         }
     }
     writePNG(rep, url)
 }
 
-// MARK: - Main
-
-let args = CommandLine.arguments.dropFirst()
-guard args.count == 2, let command = args.first, let out = args.last else {
-    print("usage: swift scripts/icons.swift menubar <out-dir>")
-    exit(2)
+func symbol(_ name: String, _ color: NSColor) -> NSImage? {
+    let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        .applying(NSImage.SymbolConfiguration(paletteColors: [color]))
+    return NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config)
 }
-let dir = URL(fileURLWithPath: out)
-try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-switch command {
-case "menubar":
-    writePDF(shipped, dir.appendingPathComponent("MenuBarIcon.pdf"))
-    menubarSheet(dir.appendingPathComponent("menubar-options.png"))
+/// The glyph, tinted as the menu bar does, beside system items on light and dark bars.
+func menubarSheet(_ url: URL) {
+    let svg = try! String(contentsOf: assets.appendingPathComponent("menubar.svg"), encoding: .utf8)
+    let rep = sheet(width: 640, height: 250, background: NSColor(white: 0.98, alpha: 1)) {
+        text("Menu-bar glyph, real size at 2x", CGPoint(x: 30, y: 210), 16, .black, .semibold)
+        for (row, dark) in [false, true].enumerated() {
+            let bar = NSRect(x: 30, y: 140 - CGFloat(row) * 44, width: 300, height: 28)
+            (dark ? NSColor(white: 0.12, alpha: 1) : NSColor(white: 0.92, alpha: 1)).setFill()
+            NSBezierPath(roundedRect: bar, xRadius: 7, yRadius: 7).fill()
+            let ink: NSColor = dark ? .white : .black
+            let glyph = image(svg: svg.replacingOccurrences(of: "#000", with: dark ? "#fff" : "#000"))
+            glyph.draw(in: NSRect(x: bar.minX + 14, y: bar.midY - 9, width: 18, height: 18))
+            var x = bar.minX + 48
+            for name in ["wifi", "battery.100percent", "switch.2"] {
+                guard let item = symbol(name, ink) else { continue }
+                item.draw(in: NSRect(x: x, y: bar.midY - item.size.height / 2, width: item.size.width, height: item.size.height))
+                x += item.size.width + 16
+            }
+            text("Tue 9:41", CGPoint(x: x, y: bar.minY + 5), 13, ink, .medium)
+        }
+        NSColor.white.setFill()
+        NSBezierPath(roundedRect: NSRect(x: 380, y: 30, width: 160, height: 160), xRadius: 16, yRadius: 16).fill()
+        image(svg: svg).draw(in: NSRect(x: 396, y: 46, width: 128, height: 128))
+    }
+    writePNG(rep, url)
+}
+
+let args = Array(CommandLine.arguments.dropFirst())
+switch args.first {
+case "build":
+    build()
+case "sheets" where args.count == 2:
+    let dir = URL(fileURLWithPath: args[1])
+    try! FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    iconSheet(dir.appendingPathComponent("icon.png"))
+    menubarSheet(dir.appendingPathComponent("menubar-final.png"))
 default:
-    print("unknown command \(command)")
+    print("usage: swift scripts/icons.swift build | sheets <dir>")
     exit(2)
 }

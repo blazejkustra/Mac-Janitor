@@ -86,7 +86,11 @@ enum DebugCapture {
     private static func capture(to dir: URL, name: String) {
         for (i, window) in NSApp.windows.enumerated() where window.isVisible && window.frame.height > 40 {
             guard let view = window.contentView?.superview ?? window.contentView,
-                  let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
+                  let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(view.bounds.width * 2),
+                                             pixelsHigh: Int(view.bounds.height * 2), bitsPerSample: 8, samplesPerPixel: 4,
+                                             hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0,
+                                             bitsPerPixel: 0) else { continue }
+            rep.size = view.bounds.size
             view.cacheDisplay(in: view.bounds, to: rep)
             let label = window.title.isEmpty ? "panel" : "window\(i)"
             try? rep.representation(using: .png, properties: [:])?

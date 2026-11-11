@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mac Janitor: clean up after your coding agents</title>
+<meta name="description" content="A free macOS menu-bar app that clears the worktrees, node_modules, build output and caches parallel coding agents leave behind, and skips anything still in use.">
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mac Janitor">
+<meta property="og:url" content="https://blazejkustra.github.io/Mac-Janitor/">
+<meta property="og:title" content="Mac Janitor: clean up after your coding agents">
+<meta property="og:description" content="Parallel agents fill your disk with worktrees, node_modules and build output. Mac Janitor clears the finished ones from the menu bar.">
+<meta property="og:image" content="https://blazejkustra.github.io/Mac-Janitor/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/icon-256.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="toy.css">
+</head>
+<body class="home">
+<main>
+  <section class="stage">
+    <picture class="photo">
+      <source media="(max-aspect-ratio: 3/4)" type="image/avif" srcset="assets/photos/glacier-1080.avif">
+      <source media="(max-aspect-ratio: 3/4)" type="image/webp" srcset="assets/photos/glacier-1080.webp">
+      <source media="(max-aspect-ratio: 3/4)" srcset="assets/photos/glacier-1080.jpg">
+      <source type="image/avif" srcset="assets/photos/glacier-2560.avif">
+      <source type="image/webp" srcset="assets/photos/glacier-2560.webp">
+      <img src="assets/photos/glacier-2560.jpg" alt="" width="2560" height="1600" fetchpriority="high">
+    </picture>
+
+    <div class="jt jt-hero" data-janitor-toy data-events=".stage" data-avoid=".intro, .nav" data-hint="Hover the folders" data-hint-touch="Tap the folders" data-hint-click="Click the folders" data-hint-after="More keep coming" data-hint-kept="In-use folders stay put">
+      <div class="jt-field"></div>
+      <canvas class="jt-canvas"></canvas>
+      <div class="jt-dock" data-avoid>
+        <div class="jt-sink"><svg viewBox="100 100 824 824" aria-hidden="true"><defs><linearGradient id="jt-sink-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3e86ae"/><stop offset="0.7" stop-color="#256694"/></linearGradient></defs><path d="M640.59 100C722.19 100 763 100 806.92 113.89C854.88 131.34 892.66 169.12 910.11 217.08C924 261 924 301.81 924 383.41L924 640.59C924 722.19 924 763 910.11 806.92C892.66 854.88 854.88 892.66 806.92 910.11C763 924 722.19 924 640.59 924L383.41 924C301.81 924 261 924 217.08 910.11C169.12 892.66 131.34 854.88 113.89 806.92C100 763 100 722.19 100 640.59L100 383.41C100 301.81 100 261 113.89 217.08C131.34 169.12 169.12 131.34 217.08 113.89C261 100 301.81 100 383.41 100Z" fill="url(#jt-sink-bg)"/><g transform="translate(512 277) scale(8.32)"><g class="lid"><path fill="#0b1a25" transform="translate(-3.2 3.2)" d="M-7 3.5A3.5 3.5 0 0 1 -3.5 0L3.5 0A3.5 3.5 0 0 1 7 3.5L7 7A3.5 3.5 0 0 1 3.5 10.5L-3.5 10.5A3.5 3.5 0 0 1 -7 7ZM-25 8A4.5 4.5 0 0 1 -20.5 3.5L20.5 3.5A4.5 4.5 0 0 1 25 8L25 8A4.5 4.5 0 0 1 20.5 12.5L-20.5 12.5A4.5 4.5 0 0 1 -25 8Z"/><path fill="#fff" d="M-7 3.5A3.5 3.5 0 0 1 -3.5 0L3.5 0A3.5 3.5 0 0 1 7 3.5L7 7A3.5 3.5 0 0 1 3.5 10.5L-3.5 10.5A3.5 3.5 0 0 1 -7 7ZM-25 8A4.5 4.5 0 0 1 -20.5 3.5L20.5 3.5A4.5 4.5 0 0 1 25 8L25 8A4.5 4.5 0 0 1 20.5 12.5L-20.5 12.5A4.5 4.5 0 0 1 -25 8Z"/></g><path fill="#0b1a25" fill-rule="evenodd" transform="translate(-3.2 3.2)" d="M-15.94 19.18A4 4 0 0 1 -12.16 16.5L12.16 16.5A4 4 0 0 1 15.94 19.18L24.83 44.58A8.96 8.96 0 0 1 16.38 56.5L14.84 56.5A3 3 0 0 1 11.86 53.850L9.62 34.71A2.5 2.5 0 0 0 7.14 32.5L6.87 32.5A2.23 2.23 0 0 0 4.66 34.98L6.78 53.15A3 3 0 0 1 3.8 56.5L-3.8 56.5A3 3 0 0 1 -6.78 53.15L-4.66 34.98A2.23 2.23 0 0 0 -6.87 32.5L-7.14 32.5A2.5 2.5 0 0 0 -9.62 34.71L-11.86 53.85A3 3 0 0 1 -14.84 56.5L-16.37 56.5A8.96 8.96 0 0 1 -24.83 44.58Z"/><path fill="#fff" fill-rule="evenodd" d="M-15.94 19.18A4 4 0 0 1 -12.16 16.5L12.16 16.5A4 4 0 0 1 15.94 19.18L24.83 44.58A8.96 8.96 0 0 1 16.38 56.5L14.84 56.5A3 3 0 0 1 11.86 53.85L9.62 34.71A2.5 2.5 0 0 0 7.14 32.5L6.87 32.5A2.23 2.23 0 0 0 4.66 34.98L6.78 53.15A3 3 0 0 1 3.8 56.5L-3.8 56.5A3 3 0 0 1 -6.78 53.15L-4.66 34.98A2.23 2.23 0 0 0 -6.87 32.5L-7.14 32.5A2.5 2.5 0 0 0 -9.62 34.71L-11.86 53.85A3 3 0 0 1 -14.84 56.5L-16.37 56.5A8.96 8.96 0 0 1 -24.83 44.58Z"/></g></svg></div>
+        <div class="jt-readout"><span class="jt-count">0.0</span><span class="jt-unit">GB freed</span></div>
+        <span class="jt-hint"></span>
+      </div>
+    </div>
+
+    <header class="nav wrap">
+      <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="30" height="30">Mac Janitor</a>
+      <nav class="links" aria-label="Site">
+        <a href="details.html">How it works</a>
+        <a class="icon" href="https://github.com/blazejkustra/Mac-Janitor" aria-label="Source on GitHub">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        </a>
+        <a class="icon" href="https://x.com/blazejkustra_" aria-label="Błażej Kustra on X">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </a>
+      </nav>
+    </header>
+
+    <div class="intro">
+      <h1>Clean up after your coding agents.</h1>
+      <p class="lede">Every parallel agent gets its own worktree, node_modules and build output. Mac Janitor clears the ones that are done and skips anything an agent still has open.</p>
+      <div class="ctas">
+        <a class="btn main" href="https://github.com/blazejkustra/Mac-Janitor/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9-.7 0-1.9-.8-3.1-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3.1.7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.5 1.3-2.6 0 0-2.5-1-2.5-3.7zM14.1 5.5c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg>
+          Download for Mac
+        </a>
+        <button class="btn ghost" type="button" id="watch" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z"/></svg>
+          Watch video
+        </button>
+      </div>
+      <p class="meta">Free and open source · macOS 13 or later · Apple silicon and Intel</p>
+    </div>
+  </section>
+
+  <section class="tour wrap">
+    <figure class="shot">
+      <img src="assets/panel-dark.png" width="720" height="1088" alt="The Mac Janitor menu-bar panel: 17.7 GB can be freed, split into old worktrees, worktree dependencies, Android emulators, caches, the Trash and more" loading="lazy">
+    </figure>
+    <div class="tour-copy">
+      <h2>Everything your agents left behind, in one panel.</h2>
+      <p>Mac Janitor scans the places parallel agents and dev tools fill up, and shows how much each one holds. Plain rules decide what is old enough to go, and anything a running process has open is skipped.</p>
+      <ul class="rows">
+        <li><b>Finished worktrees</b><span>merged with nothing left to push, or untouched for 30 days</span></li>
+        <li><b>node_modules in worktrees</b><span>nobody opened the worktree for 3 days</span></li>
+        <li><b>Build output and caches</b><span>.next, Pods, Gradle, Cargo, Xcode DerivedData, pnpm and Yarn stores</span></li>
+        <li><b>Docker images and emulators</b><span>images no container uses, Android emulators left idle</span></li>
+        <li><b>Claude Code scratch folders</b><span>sessions untouched for two weeks</span></li>
+        <li><b>The Trash</b><span>items trashed over a week ago</span></li>
+      </ul>
+      <a class="more" href="details.html">What it never touches, and questions</a>
+    </div>
+  </section>
+
+  <footer class="foot wrap">
+    <span class="brand small"><img src="assets/logo.svg" alt="" width="18" height="18">Mac Janitor</span>
+    <a href="https://github.com/blazejkustra/Mac-Janitor">Source on GitHub</a>
+    <a href="details.html#faq">Questions</a>
+    <span>macOS 13 or later</span>
+  </footer>
+</main>
+
+<dialog class="player" id="player" aria-label="Mac Janitor demo video">
+  <div class="frame" id="frame"></div>
+  <button class="close" type="button" id="close" aria-label="Close video">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</dialog>
+
+<template id="soon">
+  <div class="soon">
+    <img src="assets/demo-poster.jpg" alt="">
+    <div class="soon-note">
+      <b>Video coming soon</b>
+      <span>A short tour of a scan and a clean is on its way.</span>
+    </div>
+  </div>
+</template>
+
+<script src="player.js" defer></script>
+<script src="toy.js" defer></script>
+</body>
+</html>
