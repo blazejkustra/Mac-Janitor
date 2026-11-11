@@ -38,6 +38,7 @@ enum DebugCapture {
         case "onboarding": Windows.shared.showOnboarding(step: step(argument))
         case "settings": Windows.shared.showSettings()
         case "capture": capture(to: dir, name: argument)
+        case "capture-menubar": captureMenuBar(to: dir)
         case "windows":
             let lines = NSApp.windows.map { "\($0.className) visible=\($0.isVisible) \($0.frame) \($0.title)" }
             try? lines.joined(separator: "\n").write(to: dir.appendingPathComponent("windows.txt"), atomically: true, encoding: .utf8)
@@ -68,6 +69,14 @@ enum DebugCapture {
         panel = window
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    private static func captureMenuBar(to dir: URL) {
+        guard let window = NSApp.windows.first(where: { $0.className == "NSStatusBarWindow" && $0.frame.minY > 0 }),
+              let view = window.contentView,
+              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+        view.cacheDisplay(in: view.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent("menubar-item.png"))
     }
 
     private final class KeyWindow: NSWindow {

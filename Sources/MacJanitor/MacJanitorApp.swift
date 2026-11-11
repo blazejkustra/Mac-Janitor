@@ -31,9 +31,18 @@ private struct MenuBarLabel: View {
             // Menu-bar images render as templates; a non-template image keeps its red.
             Image(nsImage: Self.warning)
         } else {
-            Image(systemName: "sparkles")
+            Image(nsImage: Self.glyph)
         }
     }
+
+    /// Drawn by scripts/icons.swift; a bare binary outside the bundle falls back to a symbol.
+    private static let glyph: NSImage = {
+        let image = Bundle.main.image(forResource: "MenuBarIcon")
+            ?? NSImage(systemSymbolName: "internaldrive", accessibilityDescription: nil)!
+        image.isTemplate = true
+        image.accessibilityDescription = "Mac Janitor"
+        return image
+    }()
 
     private static let warning: NSImage = {
         let config = NSImage.SymbolConfiguration(paletteColors: [.systemRed])

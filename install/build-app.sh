@@ -17,6 +17,7 @@ BIN_DIR="$(swift build -c release --show-bin-path)"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/LaunchAgents"
 cp "$BIN_DIR/MacJanitor" "$APP/Contents/MacOS/MacJanitor"
+cp assets/MenuBarIcon.pdf "$APP/Contents/Resources/MenuBarIcon.pdf"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
