@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mac Janitor: disk space back from your dev tools</title>
 <meta name="description" content="A menu-bar app that clears old worktrees, node_modules, build output, caches and the Trash. You see every item before anything goes.">
-<meta name="theme-color" content="#0b1513">
+<meta name="theme-color" content="#07120f">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/icon-256.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,130 +13,55 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-<header class="nav wrap">
-  <a class="brand" href="./"><img src="assets/icon-256.png" alt="" width="32" height="32">Mac Janitor</a>
-  <nav class="links">
-    <a href="#cleans">What it cleans</a>
-    <a href="#access">Permissions</a>
-    <a href="#faq">FAQ</a>
-    <a class="gh" href="https://github.com/blazejkustra/Mac-Janitor" aria-label="Source on GitHub">
+<body class="home">
+<main class="stage">
+  <img class="backdrop" src="assets/backdrop.jpg" alt="" aria-hidden="true">
+  <img class="peek" src="assets/panel-dark.png" width="360" height="568" alt="Mac Janitor's menu-bar panel: 17.7 GB can be freed, categories shown as tiles with their sizes">
+
+  <section class="card" aria-labelledby="title">
+    <img class="mark" src="assets/icon-256.png" width="72" height="72" alt="Mac Janitor icon">
+    <h1 id="title">Disk space back from your dev tools.</h1>
+    <p class="lede">Old worktrees, node_modules, build output and caches, cleared from the menu bar. You see every item first.</p>
+    <div class="ctas">
+      <a class="btn main" href="#download" id="download">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9-.7 0-1.9-.8-3.1-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3.1.7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.5 1.3-2.6 0 0-2.5-1-2.5-3.7zM14.1 5.5c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg>
+        Download for Mac
+      </a>
+      <button class="btn ghost" type="button" id="watch" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z"/></svg>
+        Watch video
+      </button>
+    </div>
+    <p class="meta">Free · macOS 13 or later · Apple silicon and Intel</p>
+  </section>
+
+  <footer class="corner">
+    <a href="details.html">How it works</a>
+    <a href="details.html#faq">Questions</a>
+    <a href="https://github.com/blazejkustra/Mac-Janitor" class="gh" aria-label="Source on GitHub">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+      GitHub
     </a>
-  </nav>
-</header>
-
-<main>
-  <section class="hero wrap">
-    <div class="pitch">
-      <h1>Get your disk back from your dev tools.</h1>
-      <p class="lede">Mac Janitor sits in the menu bar and finds the leftovers: old worktrees, node_modules, build folders, caches and the Trash. You see every item before anything goes.</p>
-      <div class="ctas">
-        <a class="btn main" href="#download" id="download">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9-.7 0-1.9-.8-3.1-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3.1.7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.5 1.3-2.6 0 0-2.5-1-2.5-3.7zM14.1 5.5c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg>
-          Download for Mac
-        </a>
-        <a class="btn ghost" href="https://github.com/blazejkustra/Mac-Janitor">Source on GitHub</a>
-      </div>
-      <p class="meta">Free and open source · macOS 13 or later · Apple silicon and Intel</p>
-    </div>
-    <div class="stage" aria-label="Mac Janitor's menu-bar panel">
-      <img class="shot back" src="assets/detail-light.png" width="360" height="560" alt="A category page in light mode, listing worktree dependencies with project, size and a pin to keep each one">
-      <img class="shot front" src="assets/panel-dark.png" width="360" height="568" alt="The menu-bar panel in dark mode: 17.7 GB can be freed, with categories shown as tiles and their sizes">
-    </div>
-  </section>
-
-  <section class="band wrap" id="cleans">
-    <div class="split">
-      <div>
-        <h2>What it cleans</h2>
-        <p class="sub">Things a build, an install or a download makes again. Each rule waits until the item has sat unused for a while.</p>
-        <ul class="kinds">
-          <li><span class="dot" style="--c:#6e6af0"></span><span><b>Old worktrees</b> merged with nothing left to push, or untouched for 30 days</span></li>
-          <li><span class="dot" style="--c:#34c759"></span><span><b>node_modules</b> in worktrees nobody opened for 3 days</span></li>
-          <li><span class="dot" style="--c:#ff9f0a"></span><span><b>Build output</b> in projects that have not changed for two weeks</span></li>
-          <li><span class="dot" style="--c:#ff375f"></span><span><b>Caches</b> nothing has read for a month</span></li>
-          <li><span class="dot" style="--c:#0a84ff"></span><span><b>Docker images</b>, <b>Android emulators</b> and <b>agent scratch folders</b> left unused</span></li>
-          <li><span class="dot" style="--c:#8e8e93"></span><span><b>The Trash</b>, for items trashed over a week ago</span></li>
-        </ul>
-      </div>
-      <div>
-        <h2>What it never touches</h2>
-        <p class="sub">The rules are careful by default, and every check runs again right before a delete.</p>
-        <ul class="never">
-          <li><span>Anything a running app has open, or a LaunchAgent points to</span></li>
-          <li><span>Anything you pin to keep, and everything inside it</span></li>
-          <li><span>Unpushed commits. Uncommitted changes are saved to a patch first</span></li>
-          <li><span>Your documents, photos and music</span></li>
-          <li><span>Large files, unless you pick them by hand. Then they go to the Trash</span></li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <section class="feature wrap">
-    <figure class="pair">
-      <img src="assets/detail-dark.png" width="360" height="560" alt="Worktree dependencies listed with project and worktree names, sizes, Show in Finder and a pin">
-      <img src="assets/confirm-dark.png" width="360" height="760" alt="The clean confirmation, broken down by category">
-    </figure>
-    <div class="copy">
-      <h2>You see each item before it goes</h2>
-      <p>Open a category and every item has a name you recognise, the project and worktree it belongs to, its size and the reason it qualifies. Pin anything you want to keep. Cleaning asks once more, with the totals.</p>
-      <p>Prefer it hands-off? Turn on automatic cleaning and pick how often. It stays off until you do.</p>
-    </div>
-  </section>
-
-  <section class="feature reverse wrap" id="access">
-    <div class="copy">
-      <h2>One switch in Privacy &amp; Security</h2>
-      <p>macOS guards your Desktop, Documents, Downloads and the Trash. Without Full Disk Access, Mac Janitor skips them and never pops up a prompt.</p>
-      <p>Setup opens the right page in System Settings and shows the moment access is on. Only Mac Janitor needs to be in the list: its scheduled cleans run as the same app.</p>
-    </div>
-    <figure class="single">
-      <img src="assets/setup-access.png" width="800" height="600" alt="The setup window's Full Disk Access step, with a live status and steps to allow it">
-    </figure>
-  </section>
-
-  <section class="feature wrap">
-    <figure class="themes">
-      <img class="dark" src="assets/settings-dark.png" width="760" height="560" alt="Settings in dark mode, showing each category with its explanation and thresholds">
-      <img class="light" src="assets/settings-light.png" width="760" height="560" alt="The same settings in light mode">
-    </figure>
-    <div class="copy">
-      <h2>Rules you can read</h2>
-      <p>Every category says in plain words what it removes and when. Change the waiting times, switch categories off, and keep a list of folders that are never touched.</p>
-    </div>
-  </section>
-
-  <section class="faq wrap" id="faq">
-    <h2>Questions</h2>
-    <details>
-      <summary>Can I undo a clean?</summary>
-      <p>Deleted items are gone, except large files, which go to the Trash. Before a worktree goes, its uncommitted changes and small untracked files are saved for 30 days, and commits that no branch holds get a ref.</p>
-    </details>
-    <details>
-      <summary>Will it delete something I am working on?</summary>
-      <p>Anything open in a running app, or used as a working folder, is left alone. So is every item you pin. Each rule also waits days or weeks of inactivity before an item qualifies.</p>
-    </details>
-    <details>
-      <summary>Why does it need Full Disk Access?</summary>
-      <p>To look inside Desktop, Documents, Downloads and the Trash. It still works without it and skips those folders.</p>
-    </details>
-    <details>
-      <summary>Does it run in the background?</summary>
-      <p>Only if you turn on automatic cleaning. A small background job then checks every hour and cleans at the interval you choose, or sooner when free space runs low.</p>
-    </details>
-    <details>
-      <summary>Does it send anything anywhere?</summary>
-      <p>No. It reads your disk and asks git and gh about your own repos. Nothing leaves your Mac.</p>
-    </details>
-  </section>
+  </footer>
 </main>
 
-<footer class="foot wrap">
-  <span class="brand small"><img src="assets/icon-256.png" alt="" width="20" height="20">Mac Janitor</span>
-  <a href="https://github.com/blazejkustra/Mac-Janitor">Source on GitHub</a>
-  <span>macOS 13 or later</span>
-</footer>
+<dialog class="player" id="player" aria-label="Mac Janitor demo video">
+  <div class="frame" id="frame"></div>
+  <button class="close" type="button" id="close" aria-label="Close video">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</dialog>
+
+<template id="soon">
+  <div class="soon">
+    <img src="assets/demo-poster.jpg" alt="">
+    <div class="soon-note">
+      <b>Video coming soon</b>
+      <span>A short tour of a scan and a clean is on its way.</span>
+    </div>
+  </div>
+</template>
+
+<script src="player.js" defer></script>
 </body>
 </html>
