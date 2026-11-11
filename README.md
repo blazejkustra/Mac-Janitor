@@ -133,8 +133,8 @@ swift run MacJanitor --snapshot /tmp/shots
 - `Sources/MacJanitor` - the menu-bar app; `MacJanitor run ...` is the CLI
 - `assets/` - `logo.svg` and `menubar.svg` are the masters; `swift scripts/icons.swift build` makes the
   app icon, menu-bar glyph and site icons from them
-- `site/` - the website; serve it with `python3 -m http.server -d site`. `scripts/site-footage.sh` cuts
-  its background loops, and a `site/assets/demo.mp4` dropped in place enables the video
+- `site/` - the website; serve it with `python3 -m http.server -d site`. `scripts/site-photos.sh` builds
+  its hero photos, and a `site/assets/demo.mp4` dropped in place enables the video
 
 `./install/uninstall.sh` removes the LaunchAgent that older developer installs wrote.
 

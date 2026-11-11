@@ -1,31 +1,26 @@
-const FOOTAGE = ['sailboat', 'dandelion', 'moon'];
+const PHOTOS = ['dunes', 'river', 'coast'];
+const DEFAULT_PHOTO = PHOTOS[0];
 
-const params = new URLSearchParams(location.search);
-const choice = FOOTAGE.includes(params.get('bg')) ? params.get('bg') : FOOTAGE[0];
-document.body.dataset.bg = choice;
-
-const backdrop = document.getElementById('backdrop');
-document.getElementById('poster').src = `assets/footage/${choice}.jpg`;
-
-function wantsStill() {
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const saveData = navigator.connection && navigator.connection.saveData;
-  return reduced || saveData;
+function chosenPhoto() {
+  const requested = new URLSearchParams(location.search).get('bg');
+  return PHOTOS.includes(requested) ? requested : DEFAULT_PHOTO;
 }
 
-function playLoop() {
-  const small = matchMedia('(max-width: 720px)').matches;
-  const video = document.createElement('video');
-  video.src = `assets/footage/${choice}${small ? '-720' : ''}.mp4`;
-  video.muted = true;
-  video.loop = true;
-  video.autoplay = true;
-  video.playsInline = true;
-  video.setAttribute('aria-hidden', 'true');
-  video.addEventListener('playing', () => video.classList.add('playing'), { once: true });
-  backdrop.appendChild(video);
+function swapPhoto(path, photo) {
+  return path.replace(`/${DEFAULT_PHOTO}-`, `/${photo}-`);
 }
 
-if (!wantsStill()) {
-  playLoop();
+function showPhoto(photo) {
+  const picture = document.getElementById('backdrop');
+  picture.querySelectorAll('source').forEach(source => {
+    source.srcset = swapPhoto(source.srcset, photo);
+  });
+  const img = picture.querySelector('img');
+  img.src = swapPhoto(img.src, photo);
+}
+
+const photo = chosenPhoto();
+document.body.dataset.bg = photo;
+if (photo !== DEFAULT_PHOTO) {
+  showPhoto(photo);
 }

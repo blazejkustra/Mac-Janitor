@@ -5,45 +5,87 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mac Janitor: disk space back from your dev tools</title>
 <meta name="description" content="A menu-bar app that clears old worktrees, node_modules, build output, caches and the Trash. You see every item before anything goes.">
-<meta name="theme-color" content="#07120f">
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mac Janitor">
+<meta property="og:url" content="https://blazejkustra.github.io/Mac-Janitor/">
+<meta property="og:title" content="Mac Janitor: disk space back from your dev tools">
+<meta property="og:description" content="Old worktrees, node_modules, build output and caches, cleared from the menu bar. You see every item first.">
+<meta property="og:image" content="https://blazejkustra.github.io/Mac-Janitor/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/icon-256.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body class="home">
-<main class="stage">
-  <div class="backdrop" id="backdrop" aria-hidden="true">
-    <img id="poster" src="assets/footage/sailboat.jpg" alt="">
-  </div>
+<main>
+  <section class="stage">
+    <picture class="photo" id="backdrop">
+      <source media="(max-aspect-ratio: 3/4)" type="image/avif" srcset="assets/photos/dunes-1080.avif">
+      <source media="(max-aspect-ratio: 3/4)" type="image/webp" srcset="assets/photos/dunes-1080.webp">
+      <source media="(max-aspect-ratio: 3/4)" srcset="assets/photos/dunes-1080.jpg">
+      <source type="image/avif" srcset="assets/photos/dunes-2560.avif">
+      <source type="image/webp" srcset="assets/photos/dunes-2560.webp">
+      <img src="assets/photos/dunes-2560.jpg" alt="" width="2560" height="1600" fetchpriority="high">
+    </picture>
+    <script src="backdrop.js"></script>
 
-  <section class="card" aria-labelledby="title">
-    <img class="mark" src="assets/logo.svg" width="72" height="72" alt="Mac Janitor icon">
-    <h1 id="title">Disk space back from your dev tools.</h1>
-    <p class="lede">Old worktrees, node_modules, build output and caches, cleared from the menu bar. You see every item first.</p>
-    <div class="ctas">
-      <a class="btn main" href="#download" id="download">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9-.7 0-1.9-.8-3.1-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3.1.7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.5 1.3-2.6 0 0-2.5-1-2.5-3.7zM14.1 5.5c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg>
-        Download for Mac
-      </a>
-      <button class="btn ghost" type="button" id="watch" aria-haspopup="dialog">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z"/></svg>
-        Watch video
-      </button>
+    <header class="nav wrap">
+      <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="30" height="30">Mac Janitor</a>
+      <nav class="links" aria-label="Site">
+        <a href="details.html">How it works</a>
+        <a class="icon" href="https://github.com/blazejkustra/Mac-Janitor" aria-label="Source on GitHub">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        </a>
+      </nav>
+    </header>
+
+    <div class="intro">
+      <h1>Disk space back from your dev tools.</h1>
+      <p class="lede">Old worktrees, node_modules, build output and caches, cleared from the menu bar. You see every item first.</p>
+      <div class="ctas">
+        <a class="btn main" href="https://github.com/blazejkustra/Mac-Janitor/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9-.7 0-1.9-.8-3.1-.8-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.8 1.1 1.7 2.4 2.9 2.3 1.2 0 1.6-.7 3-.7s1.8.7 3.1.7c1.3 0 2.1-1.1 2.8-2.3.9-1.3 1.3-2.5 1.3-2.6 0 0-2.5-1-2.5-3.7zM14.1 5.5c.6-.8 1.1-1.9 1-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.5 2.7-1.3z"/></svg>
+          Download for Mac
+        </a>
+        <button class="btn ghost" type="button" id="watch" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z"/></svg>
+          Watch video
+        </button>
+      </div>
+      <p class="meta">Free and open source · macOS 13 or later · Apple silicon and Intel</p>
     </div>
-    <p class="meta">Free · macOS 13 or later · Apple silicon and Intel</p>
   </section>
 
-  <footer class="corner">
-    <a href="details.html">How it works</a>
+  <section class="tour wrap">
+    <figure class="shot">
+      <img src="assets/panel-dark.png" width="720" height="1136" alt="The Mac Janitor menu-bar panel: 17.7 GB can be freed, split into old worktrees, worktree dependencies, Android emulators, caches, the Trash and more" loading="lazy">
+    </figure>
+    <div class="tour-copy">
+      <h2>Everything in one panel.</h2>
+      <p>Mac Janitor scans the places your dev tools fill up and shows how much each one holds. Plain rules decide what is old enough to go, so nothing new or in use qualifies.</p>
+      <ul class="rows">
+        <li><b>Old worktrees</b><span>merged, or untouched for 30 days</span></li>
+        <li><b>node_modules</b><span>in worktrees idle for 3 days</span></li>
+        <li><b>Build output and caches</b><span>Xcode DerivedData, Gradle, pnpm, Yarn</span></li>
+        <li><b>Docker and emulators</b><span>images and devices left unused</span></li>
+        <li><b>The Trash</b><span>items trashed over a week ago</span></li>
+      </ul>
+      <a class="more" href="details.html">What it never touches, and questions</a>
+    </div>
+  </section>
+
+  <footer class="foot wrap">
+    <span class="brand small"><img src="assets/logo.svg" alt="" width="18" height="18">Mac Janitor</span>
+    <a href="https://github.com/blazejkustra/Mac-Janitor">Source on GitHub</a>
     <a href="details.html#faq">Questions</a>
-    <a href="https://github.com/blazejkustra/Mac-Janitor" class="gh" aria-label="Source on GitHub">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
-      GitHub
-    </a>
+    <span>macOS 13 or later</span>
   </footer>
 </main>
 
@@ -64,7 +106,6 @@
   </div>
 </template>
 
-<script src="backdrop.js"></script>
 <script src="player.js" defer></script>
 </body>
 </html>
