@@ -22,16 +22,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="styles.css">
-<script>
-if (new URLSearchParams(location.search).get('v') === 'ice') {
-  document.documentElement.dataset.variant = 'ice';
-}
-</script>
 </head>
 <body class="home">
 <main>
   <section class="stage">
-    <picture class="photo" id="photo">
+    <picture class="photo">
       <source media="(max-aspect-ratio: 3/4)" type="image/avif" srcset="assets/photos/glacier-1080.avif">
       <source media="(max-aspect-ratio: 3/4)" type="image/webp" srcset="assets/photos/glacier-1080.webp">
       <source media="(max-aspect-ratio: 3/4)" srcset="assets/photos/glacier-1080.jpg">
@@ -39,21 +34,6 @@ if (new URLSearchParams(location.search).get('v') === 'ice') {
       <source type="image/webp" srcset="assets/photos/glacier-2560.webp">
       <img src="assets/photos/glacier-2560.jpg" alt="" width="2560" height="1600" fetchpriority="high">
     </picture>
-    <template id="ice-photo">
-      <picture class="photo">
-        <source media="(max-aspect-ratio: 3/4)" type="image/avif" srcset="assets/photos/ice-720.avif">
-        <source media="(max-aspect-ratio: 3/4)" type="image/webp" srcset="assets/photos/ice-720.webp">
-        <source media="(max-aspect-ratio: 3/4)" srcset="assets/photos/ice-720.jpg">
-        <source type="image/avif" srcset="assets/photos/ice-1672.avif">
-        <source type="image/webp" srcset="assets/photos/ice-1672.webp">
-        <img src="assets/photos/ice-1672.jpg" alt="" width="1672" height="941" fetchpriority="high">
-      </picture>
-    </template>
-    <script>
-    if (document.documentElement.dataset.variant === 'ice') {
-      document.getElementById('photo').replaceWith(document.getElementById('ice-photo').content);
-    }
-    </script>
 
     <header class="nav wrap">
       <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="30" height="30">Mac Janitor</a>
