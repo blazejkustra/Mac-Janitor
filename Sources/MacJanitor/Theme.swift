@@ -52,14 +52,15 @@ struct IconTile: View {
 
 /// Grouped rows on a lighter rounded surface, divided by hairlines.
 struct Card<Content: View>: View {
+    var radius: CGFloat = 12
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             _VariadicView.Tree(DividedLayout()) { content }
         }
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.stroke))
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Palette.stroke))
     }
 }
 
@@ -218,11 +219,12 @@ struct PillButtonStyle: ButtonStyle {
             .foregroundStyle(lit ? AnyShapeStyle(.white) : AnyShapeStyle(.tertiary))
             .padding(.horizontal, 16)
             .frame(height: 36)
-            .background(lit ? AnyShapeStyle(tint) : AnyShapeStyle(Palette.well),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.black.opacity(configuration.isPressed ? 0.12 : 0)))
-            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(lit ? AnyShapeStyle(tint) : AnyShapeStyle(Palette.well), in: shape)
+            .overlay(shape.fill(.black.opacity(configuration.isPressed ? 0.12 : 0)))
+            .contentShape(shape)
     }
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous) }
 }
 
 /// A quieter pill for secondary actions.

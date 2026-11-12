@@ -6,6 +6,8 @@ enum Metrics {
     static let width: CGFloat = 360
     static let inset: CGFloat = 14
     static let listHeight: CGFloat = 400
+    static let windowRadius: CGFloat = 22
+    static let cardRadius: CGFloat = 12
 }
 
 struct PanelView: View {
@@ -70,8 +72,8 @@ private struct HeroCard: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.stroke))
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
         .overlay(alignment: .topTrailing) {
             IconButton(symbol: "gearshape", label: "Settings") { Windows.shared.showSettings() }
                 .padding(8)
@@ -183,8 +185,8 @@ private struct AccessBanner: View {
                 .pointingCursor()
         }
         .padding(10)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.stroke))
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
     }
 }
 
@@ -212,7 +214,7 @@ struct ProblemBanner: View {
         .foregroundStyle(Palette.critical)
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(Palette.critical.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Palette.critical.opacity(0.1), in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 }
 
@@ -259,8 +261,8 @@ private struct CategoryTile: View {
             }
             .padding(11)
             .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-            .background(hovering ? Palette.cardHover : Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.stroke))
+            .background(hovering ? Palette.cardHover : Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
             .animation(.easeOut(duration: 0.12), value: hovering)
             .contentShape(Rectangle())
         }
@@ -368,8 +370,8 @@ private struct CleanConfirmation: View {
             }
         }
         .padding(14)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Palette.stroke))
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
     }
 }
 

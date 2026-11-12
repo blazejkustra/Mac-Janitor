@@ -55,20 +55,8 @@ enum DebugCapture {
         }
     }
 
-    /// The menu-bar panel's view in a plain window: synthetic clicks cannot open a MenuBarExtra.
-    private static var panel: NSWindow?
-
     private static func openPanel() {
-        guard let store = Windows.shared.store else { return }
-        let window = panel ?? KeyWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
-        if panel == nil {
-            window.contentViewController = NSHostingController(rootView: PanelView().environmentObject(store))
-        }
-        window.isReleasedWhenClosed = false
-        window.setFrameOrigin(NSPoint(x: 900, y: 900))
-        panel = window
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        StatusPanel.shared.show()
     }
 
     private static func captureMenuBar(to dir: URL) {
@@ -77,10 +65,6 @@ enum DebugCapture {
               let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
         view.cacheDisplay(in: view.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent("menubar-item.png"))
-    }
-
-    private final class KeyWindow: NSWindow {
-        override var canBecomeKey: Bool { true }
     }
 
     private static func capture(to dir: URL, name: String) {

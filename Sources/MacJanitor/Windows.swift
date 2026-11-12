@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The app's real windows: setup and settings. The menu-bar panel is SwiftUI's own.
+/// The app's real windows: setup and settings. The menu-bar panel is StatusPanel.
 @MainActor
 final class Windows: NSObject, NSWindowDelegate {
     static let shared = Windows()

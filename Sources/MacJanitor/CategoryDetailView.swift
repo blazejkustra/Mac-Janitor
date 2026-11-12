@@ -95,7 +95,7 @@ private struct EmptyCategory: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 26)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
     }
 }
 
@@ -107,7 +107,7 @@ private struct ItemSection: View {
     var body: some View {
         if !items.isEmpty {
             SectionHeader(title: "\(title) (\(items.count))")
-            Card {
+            Card(radius: Metrics.cardRadius) {
                 ForEach(items) { ItemRow(item: $0) }
             }
             if let note { Footnote(text: note) }

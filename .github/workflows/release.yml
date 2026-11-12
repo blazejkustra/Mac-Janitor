@@ -28,6 +28,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Newest Xcode
+        run: |
+          XCODE="$(printf '%s\n' /Applications/Xcode_*.app | sort -V | tail -1)"
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          echo "Building with $XCODE, macOS SDK $(DEVELOPER_DIR="$XCODE/Contents/Developer" xcrun --sdk macosx --show-sdk-version)"
+
       - name: A tag needs the certificate
         if: env.HAS_CERT != 'true' && github.ref_type == 'tag'
         run: |
