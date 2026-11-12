@@ -6,7 +6,7 @@
 
 Mac Janitor clears the leftovers that coding agents and dev tools pile up on your Mac. Running agents in parallel means a git worktree per task, each with its own node_modules and build output, plus Docker images, caches and scratch folders. Mac Janitor finds the finished ones, shows you every item, and skips anything a running process still has open.
 
-<img src="./site/assets/demo-poster.jpg" alt="The Mac Janitor menu-bar panel: 17.7 GB can be freed, with each category as a tile" />
+<img src="./site/assets/demo-poster.jpg" alt="The Mac Janitor menu-bar panel: 25.6 GB can be freed, with each category as a tile" />
 
 [![Download for macOS](https://img.shields.io/badge/Download_for_macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/blazejkustra/Mac-Janitor/releases)
 
