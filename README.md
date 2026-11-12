@@ -126,9 +126,9 @@ swift run MacJanitor --snapshot /tmp/shots
 ```
 
 Releases: bump `VERSION`, push a `v<version>` tag, and `.github/workflows/release.yml` drafts a
-release with the notarized DMG. It needs the `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `APPLE_ID`,
-`APPLE_TEAM_ID` and `APPLE_APP_PASSWORD` secrets. `./scripts/release.sh --adhoc` makes an unsigned
-test DMG.
+release with the notarized DMG. It needs the `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `ASC_KEY_ID`,
+`ASC_ISSUER_ID` and `ASC_KEY_P8` (App Store Connect API key) secrets. `./scripts/release.sh --adhoc`
+makes an unsigned test DMG.
 
 <details>
 <summary>Layout and files</summary>
