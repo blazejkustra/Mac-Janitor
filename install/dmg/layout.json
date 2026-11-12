@@ -1,0 +1,7 @@
+{
+  "window": { "width": 660, "height": 420 },
+  "iconSize": 128,
+  "textSize": 13,
+  "app": { "x": 180, "y": 190 },
+  "applications": { "x": 480, "y": 190 }
+}
