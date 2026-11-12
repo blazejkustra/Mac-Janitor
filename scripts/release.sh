@@ -8,7 +8,9 @@
 #   MACJANITOR_NOTARY_PROFILE                      a `notarytool store-credentials` profile
 #                                                  (MACJANITOR_NOTARY_KEYCHAIN if not in login)
 #   MACJANITOR_NOTARY_KEY, _KEY_ID, _ISSUER        an App Store Connect API key (.p8 path)
-# --adhoc: no Developer ID, no notarization; a DMG that other Macs open only via Open Anyway.
+# Update signing: SPARKLE_ED_KEY_FILE (a `generate_keys -x` export), or the key `generate_keys`
+# stored in the login keychain. It signs the DMG for release/appcast.xml, the Sparkle feed.
+# --adhoc: no Developer ID, no notarization, no appcast; a DMG that other Macs open only via Open Anyway.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -18,6 +20,10 @@ APP="build/Mac Janitor.app"
 OUT="release"
 VERSIONED_DMG="$OUT/MacJanitor-$VERSION.dmg"
 STABLE_DMG="$OUT/MacJanitor.dmg"
+APPCAST="$OUT/appcast.xml"
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+SPARKLE_BIN=".build/artifacts/sparkle/Sparkle/bin"
+RELEASES="https://github.com/blazejkustra/Mac-Janitor/releases"
 ADHOC=false
 
 step() { printf '\n> %s\n' "$*"; }
@@ -63,7 +69,7 @@ build_app() {
 
 sign() {
   if $ADHOC; then
-    codesign --force --options runtime --sign - "$@"
+    codesign --force --sign - "$@"
   else
     codesign --force --options runtime --timestamp --sign "$IDENTITY" "$@"
   fi
@@ -71,6 +77,9 @@ sign() {
 
 sign_app() {
   step "Signing with $IDENTITY (hardened runtime)"
+  sign "$SPARKLE/Versions/B/Autoupdate"
+  sign "$SPARKLE/Versions/B/Updater.app"
+  sign "$SPARKLE"
   sign "$APP/Contents/MacOS/MacJanitor"
   sign "$APP"
   codesign --verify --deep --strict -vv "$APP"
@@ -109,10 +118,45 @@ check_gatekeeper() {
   spctl -a -vv -t open --context context:primary-signature "$VERSIONED_DMG"
 }
 
+update_signature() {
+  if [ -n "${SPARKLE_ED_KEY_FILE:-}" ]; then
+    "$SPARKLE_BIN/sign_update" --ed-key-file "$SPARKLE_ED_KEY_FILE" "$1"
+  else
+    "$SPARKLE_BIN/sign_update" "$1"
+  fi
+}
+
+make_appcast() {
+  step "Writing $APPCAST"
+  local signature min_system
+  signature="$(update_signature "$VERSIONED_DMG")"
+  [[ "$signature" == *'sparkle:edSignature="'* ]] || fail "sign_update gave no signature"
+  min_system="$(/usr/libexec/PlistBuddy -c "Print LSMinimumSystemVersion" "$APP/Contents/Info.plist")"
+  cat > "$APPCAST" <<XML
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Mac Janitor</title>
+    <link>$RELEASES</link>
+    <item>
+      <title>Mac Janitor $VERSION</title>
+      <pubDate>$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")</pubDate>
+      <sparkle:version>$VERSION</sparkle:version>
+      <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>$min_system</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>$RELEASES/tag/v$VERSION</sparkle:fullReleaseNotesLink>
+      <enclosure url="$RELEASES/download/v$VERSION/MacJanitor-$VERSION.dmg" type="application/octet-stream" $signature/>
+    </item>
+  </channel>
+</rss>
+XML
+}
+
 finish() {
   cp "$VERSIONED_DMG" "$STABLE_DMG"
   step "Done"
   shasum -a 256 "$VERSIONED_DMG" "$STABLE_DMG"
+  $ADHOC || echo "Upload $APPCAST with the DMGs: the app reads it from the latest release."
   if $ADHOC; then
     echo "Ad-hoc signed, not notarized: other Macs need right-click > Open or Open Anyway."
   fi
@@ -130,4 +174,5 @@ $ADHOC || notarize_app
 make_dmg
 $ADHOC || notarize_dmg
 $ADHOC || check_gatekeeper
+$ADHOC || make_appcast
 finish

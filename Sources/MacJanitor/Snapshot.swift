@@ -215,6 +215,7 @@ enum Snapshot {
             }),
             ("g-settings", { window(SettingsView(), normal) }),
             ("g-settings-categories", { window(SettingsView(page: .categories), normal) }),
+            ("g-settings-about", { window(SettingsView(page: .about), normal) }),
             ("g-settings-kept", {
                 var cfg = Config()
                 cfg.keep = ["\(home)/Developer/uncut/.claude/worktrees/factory-gates", "\(home)/Movies/Final Cut", "Pixel_9_API_36"]

@@ -1,10 +1,12 @@
 # On a v* tag: a Developer ID-signed, notarized and stapled DMG from scripts/release.sh, attached
 # to a draft release as MacJanitor-<version>.dmg and MacJanitor.dmg (the site links
-# releases/latest/download/MacJanitor.dmg). A tag without MACOS_CERT_P12 fails: an unsigned DMG
+# releases/latest/download/MacJanitor.dmg), with appcast.xml (the app's update feed, read from
+# releases/latest/download/appcast.xml once the release is published). A tag without MACOS_CERT_P12 fails: an unsigned DMG
 # must never become "latest". By hand (workflow_dispatch) without the certificate: an ad-hoc DMG
 # as a workflow artifact, no release.
 # Secrets: MACOS_CERT_P12 (Developer ID Application certificate and key, .p12, base64),
-# MACOS_CERT_PASSWORD, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (App Store Connect API key, .p8 contents).
+# MACOS_CERT_PASSWORD, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (App Store Connect API key, .p8 contents),
+# SPARKLE_ED_PRIVATE_KEY (Sparkle's `generate_keys -x` export).
 name: Release
 
 on:
@@ -70,7 +72,12 @@ jobs:
         if: env.HAS_CERT == 'true'
         env:
           MACJANITOR_NOTARY_PROFILE: macjanitor-notary
-        run: ./scripts/release.sh
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          export SPARKLE_ED_KEY_FILE="$RUNNER_TEMP/sparkle-ed-key"
+          trap 'rm -f "$SPARKLE_ED_KEY_FILE"' EXIT
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$SPARKLE_ED_KEY_FILE"
+          ./scripts/release.sh
 
       - name: Ad-hoc DMG (by hand only)
         if: env.HAS_CERT != 'true' && github.ref_type != 'tag'
@@ -81,7 +88,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: MacJanitor-dmg
-          path: release/*.dmg
+          path: |
+            release/*.dmg
+            release/appcast.xml
 
       - name: Draft release
         if: env.HAS_CERT == 'true' && github.ref_type == 'tag'
@@ -92,7 +101,7 @@ jobs:
             echo "::notice::Release $GITHUB_REF_NAME already exists; its files were left as they are. The signed DMGs are in this run's artifact."
             exit 0
           fi
-          gh release create "$GITHUB_REF_NAME" release/*.dmg --draft --title "Mac Janitor $GITHUB_REF_NAME" --generate-notes
+          gh release create "$GITHUB_REF_NAME" release/*.dmg release/appcast.xml --draft --title "Mac Janitor $GITHUB_REF_NAME" --generate-notes
 
       - name: Remove the signing keychain
         if: always() && env.MACJANITOR_NOTARY_KEYCHAIN != ''

@@ -11,17 +11,22 @@ cd "$ROOT"
 BUNDLE_ID="${MACJANITOR_BUNDLE_ID:-com.blazejkustra.macjanitor}"
 APP="build/Mac Janitor.app"
 VERSION="$(cat VERSION)"
-BUILD="${MACJANITOR_BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
+SPARKLE_FEED="https://github.com/blazejkustra/Mac-Janitor/releases/latest/download/appcast.xml"
+SPARKLE_PUBLIC_KEY="roWmokCEW+JHPVgFVc4jzZanyKzDLRE45efZn/iLhF8="
 ARCH_FLAGS=""
 for arch in ${MACJANITOR_ARCHS:-}; do ARCH_FLAGS="$ARCH_FLAGS --arch $arch"; done
 
-echo "Building release $VERSION ($BUILD)${MACJANITOR_ARCHS:+ for $MACJANITOR_ARCHS}..."
+echo "Building release $VERSION${MACJANITOR_ARCHS:+ for $MACJANITOR_ARCHS}..."
 swift build -c release $ARCH_FLAGS --product MacJanitor
 BIN_DIR="$(swift build -c release $ARCH_FLAGS --show-bin-path)"
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/LaunchAgents"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/LaunchAgents" "$APP/Contents/Frameworks"
 cp "$BIN_DIR/MacJanitor" "$APP/Contents/MacOS/MacJanitor"
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+ditto "$BIN_DIR/Sparkle.framework" "$SPARKLE"
+# The XPC services are only for sandboxed apps.
+rm -rf "$SPARKLE/XPCServices" "$SPARKLE/Versions/B/XPCServices"
 cp assets/MenuBarIcon.pdf "$APP/Contents/Resources/MenuBarIcon.pdf"
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp assets/Logo.pdf "$APP/Contents/Resources/Logo.pdf"
@@ -38,9 +43,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
-  <key>CFBundleVersion</key><string>$BUILD</string>
+  <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
+  <key>SUFeedURL</key><string>$SPARKLE_FEED</string>
+  <key>SUPublicEDKey</key><string>$SPARKLE_PUBLIC_KEY</string>
+  <key>SUEnableAutomaticChecks</key><true/>
+  <key>SUScheduledCheckInterval</key><integer>86400</integer>
 </dict>
 </plist>
 PLIST
@@ -74,6 +83,8 @@ if [ -z "$IDENTITY" ] || [ "$IDENTITY" = "-" ]; then
   echo "warning: signing ad hoc; macOS will forget Full Disk Access after every rebuild" >&2
   IDENTITY="-"
 fi
-codesign --force --sign "$IDENTITY" "$APP"
+for part in "$SPARKLE/Versions/B/Autoupdate" "$SPARKLE/Versions/B/Updater.app" "$SPARKLE" "$APP"; do
+  codesign --force --sign "$IDENTITY" "$part"
+done
 echo "Signed with: $IDENTITY"
 echo "Built $ROOT/$APP"
