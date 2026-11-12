@@ -4,6 +4,9 @@ import PackageDescription
 let package = Package(
     name: "MacJanitor",
     platforms: [.macOS(.v13)],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.1"),
+    ],
     targets: [
         // Cleanup rules, the run report, and the paths both front-ends share.
         .target(name: "JanitorCore", path: "Sources/JanitorCore"),
@@ -18,8 +21,9 @@ let package = Package(
         // The menu-bar app; with `run ...` arguments it is the CLI.
         .executableTarget(
             name: "MacJanitor",
-            dependencies: ["JanitorCore", "JanitorCLI"],
-            path: "Sources/MacJanitor"
+            dependencies: ["JanitorCore", "JanitorCLI", .product(name: "Sparkle", package: "Sparkle")],
+            path: "Sources/MacJanitor",
+            linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
         .testTarget(
             name: "JanitorCoreTests",

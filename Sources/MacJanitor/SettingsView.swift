@@ -322,6 +322,7 @@ private struct PermissionsPage: View {
 
 private struct AboutPage: View {
     @EnvironmentObject private var store: Store
+    @ObservedObject private var updates = Updates.shared
 
     var body: some View {
         HStack(spacing: 14) {
@@ -334,6 +335,17 @@ private struct AboutPage: View {
             }
         }
         .padding(.top, 14)
+        SectionHeader(title: "Updates")
+        Card {
+            SettingRow(title: "Check automatically", detail: "Looks for a new version once a day and asks before installing.") {
+                BigToggle(isOn: Binding(get: { updates.checksAutomatically }, set: { updates.checksAutomatically = $0 }))
+            }
+            SettingRow(title: "Software update", detail: "Install the newest Mac Janitor from GitHub.") {
+                Button("Check for Updates…") { updates.check() }
+                    .buttonStyle(SoftButtonStyle()).pointingCursor()
+                    .disabled(!updates.canCheck)
+            }
+        }
         SectionHeader(title: "Files")
         Card {
             SettingRow(title: "Settings and reports", detail: Format.path(Paths.support.path)) {

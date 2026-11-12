@@ -18,6 +18,8 @@ Open the DMG, drag Mac Janitor to Applications and open it. The setup window wal
 **Full Disk Access** (so it can look in Desktop, Documents, Downloads and the Trash) and asks whether
 to clean on a schedule. Automatic cleaning stays off until you turn it on.
 
+From 1.0.2 on, Mac Janitor updates itself: it checks once a day and asks before installing.
+
 ## Use
 
 | | |

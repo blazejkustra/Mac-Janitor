@@ -60,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         MainActor.assumeIsolated { DebugCapture.install() }
         #endif
+        MainActor.assumeIsolated { Updates.shared.start() }
         guard !Windows.setupDone else { return }
         MainActor.assumeIsolated { Windows.shared.showOnboarding() }
     }
