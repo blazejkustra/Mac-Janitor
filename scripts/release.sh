@@ -91,10 +91,20 @@ notarize() {
   grep -q "status: Accepted" "$WORK/notary.log" || fail "notarization of $1 was not accepted"
 }
 
+staple() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    xcrun stapler staple "$1" && return 0
+    echo "stapling $1 failed (attempt $attempt of 5), retrying in 20s" >&2
+    sleep 20
+  done
+  fail "could not staple $1"
+}
+
 notarize_app() {
   ditto -c -k --keepParent "$APP" "$WORK/MacJanitor.zip"
   notarize "$WORK/MacJanitor.zip"
-  xcrun stapler staple "$APP"
+  staple "$APP"
 }
 
 make_dmg() {
@@ -107,7 +117,7 @@ make_dmg() {
 
 notarize_dmg() {
   notarize "$VERSIONED_DMG"
-  xcrun stapler staple "$VERSIONED_DMG"
+  staple "$VERSIONED_DMG"
 }
 
 check_gatekeeper() {
