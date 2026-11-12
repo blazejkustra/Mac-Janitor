@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   dmg:
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     timeout-minutes: 60
     env:
       HAS_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
