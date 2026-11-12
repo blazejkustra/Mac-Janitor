@@ -16,9 +16,15 @@ SPARKLE_PUBLIC_KEY="roWmokCEW+JHPVgFVc4jzZanyKzDLRE45efZn/iLhF8="
 ARCH_FLAGS=""
 for arch in ${MACJANITOR_ARCHS:-}; do ARCH_FLAGS="$ARCH_FLAGS --arch $arch"; done
 
+# swiftc hands the SDK to the linking clang as --sysroot, which clang does not read the SDK
+# version from, so the binary records the deployment target as its SDK and AppKit draws the
+# pre-Tahoe window style (small corners). -isysroot records the real SDK.
+SDK="$(xcrun --sdk macosx --show-sdk-path)"
+BUILD_FLAGS="$ARCH_FLAGS -Xswiftc -Xclang-linker -Xswiftc -isysroot -Xswiftc -Xclang-linker -Xswiftc $SDK"
+
 echo "Building release $VERSION${MACJANITOR_ARCHS:+ for $MACJANITOR_ARCHS}..."
-swift build -c release $ARCH_FLAGS --product MacJanitor
-BIN_DIR="$(swift build -c release $ARCH_FLAGS --show-bin-path)"
+swift build -c release $BUILD_FLAGS --product MacJanitor
+BIN_DIR="$(swift build -c release $BUILD_FLAGS --show-bin-path)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Library/LaunchAgents" "$APP/Contents/Frameworks"

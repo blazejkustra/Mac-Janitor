@@ -65,6 +65,9 @@ build_app() {
   step "Building $APP $VERSION (arm64 + x86_64)"
   MACJANITOR_ARCHS="arm64 x86_64" MACJANITOR_SIGN_IDENTITY="-" ./install/build-app.sh
   [ "$(lipo -archs "$APP/Contents/MacOS/MacJanitor")" = "x86_64 arm64" ] || fail "the executable is not universal"
+  local sdk
+  sdk="$(vtool -show-build "$APP/Contents/MacOS/MacJanitor" | awk '/ sdk / { print $2; exit }')"
+  [ "${sdk%%.*}" -ge 26 ] || fail "linked against the macOS $sdk SDK; the Tahoe window style needs SDK 26 or newer"
 }
 
 sign() {
