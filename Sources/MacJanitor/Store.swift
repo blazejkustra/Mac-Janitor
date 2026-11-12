@@ -61,12 +61,16 @@ final class Store: ObservableObject {
     @Published private(set) var lastRun: Report?
     /// What a clean would remove: a dry run, or after a clean the items that failed.
     @Published private(set) var preview: Report?
+    /// `preview` is the one saved by an earlier launch, shown until a fresh one replaces it.
+    @Published private(set) var restored: Bool
     @Published private(set) var busy: Busy?
     @Published var problem: String?
     private var configProblem: String?
     @Published private(set) var loginStatus: SMAppService.Status
     @Published private(set) var agentStatus: SMAppService.Status
     @Published private(set) var fullDiskAccess: Bool
+    /// Space earlier cleans moved aside that is not deleted yet.
+    @Published private(set) var purgeBacklog: Int64
     /// A preview in progress, shown until it finishes when there is no earlier preview.
     @Published private(set) var scan: ScanState?
     /// The category whose items the panel shows instead of the overview.
@@ -83,25 +87,28 @@ final class Store: ObservableObject {
     private var timer: Timer?
     private var watchTimer: Timer?
     private var observers: [NSObjectProtocol] = []
+    private var measuringPurge = false
 
     static let previewMaxAge: TimeInterval = 300
 
     /// Unless `live`, the state stays as given: no disk, CLI or timers.
     init(config: Config = Config(), freeBytes: Int64, totalBytes: Int64, lastRun: Report? = nil,
-         preview: Report? = nil, busy: Busy? = nil, problem: String? = nil,
+         preview: Report? = nil, restored: Bool = false, busy: Busy? = nil, problem: String? = nil,
          loginStatus: SMAppService.Status = .notRegistered, agentStatus: SMAppService.Status = .notRegistered,
-         fullDiskAccess: Bool = true, scan: ScanState? = nil, live: Bool = false) {
+         fullDiskAccess: Bool = true, purgeBacklog: Int64 = 0, scan: ScanState? = nil, live: Bool = false) {
         self.config = config
         self.freeBytes = freeBytes
         self.totalBytes = totalBytes
         self.lastRun = lastRun
         self.preview = preview
         self.previewedWith = preview == nil ? nil : config
+        self.restored = restored
         self.busy = busy
         self.problem = problem
         self.loginStatus = loginStatus
         self.agentStatus = agentStatus
         self.fullDiskAccess = fullDiskAccess
+        self.purgeBacklog = purgeBacklog
         self.scan = scan
         self.live = live
     }
@@ -112,6 +119,7 @@ final class Store: ObservableObject {
                           loginStatus: SMAppService.mainApp.status, agentStatus: Background.status,
                           fullDiskAccess: Privacy.hasFullDiskAccess, live: true)
         store.reloadConfig()
+        store.restoreSavedPreview()
         store.startObserving()
         return store
     }
@@ -213,18 +221,7 @@ final class Store: ObservableObject {
     /// input, a re-enabled category, or an unpinned target.
     private var previewIsStale: Bool {
         guard let then = previewedWith else { return true }
-        func planInputs(_ c: Config) -> Config {
-            var c = c
-            c.paused = false
-            c.intervalHours = 0
-            c.lowDiskGB = 0
-            c.keep = []
-            c.disabled = []
-            return c
-        }
-        return planInputs(then) != planInputs(config)
-            || !Set(then.disabled).subtracting(config.disabled).isEmpty
-            || !Set(then.keep).subtracting(config.keep).isEmpty
+        return config.invalidates(previewPlannedWith: then)
     }
 
     /// A real run started after the preview did, so some of what it plans may be gone.
@@ -258,6 +255,17 @@ final class Store: ObservableObject {
         loginStatus = SMAppService.mainApp.status
         agentStatus = Background.status
         Task { await refreshAccess() }
+        measurePurgeBacklog()
+    }
+
+    /// Walks the purge folder off the main thread; it can hold hundreds of GB.
+    private func measurePurgeBacklog() {
+        guard !measuringPurge else { return }
+        measuringPurge = true
+        Task {
+            purgeBacklog = await Task.detached(priority: .utility) { FS.purgeBacklogBytes }.value
+            measuringPurge = false
+        }
     }
 
     func refreshAccess() async {
@@ -287,13 +295,31 @@ final class Store: ObservableObject {
         confirmingClean = false
     }
 
+    private func restoreSavedPreview() {
+        guard let saved = SavedPreview.load(config: config),
+              lastRun.map({ $0.startedAt < saved.report.startedAt }) ?? true else { return }
+        preview = saved.report
+        previewedWith = saved.config
+        restored = true
+    }
+
+    /// Drops the preview, in memory and on disk, so the next one starts from scratch.
+    private func forgetPreview() {
+        preview = nil
+        previewedWith = nil
+        restored = false
+        SavedPreview.discard()
+    }
+
+    /// Opening the panel with Option held rescans from scratch.
     private func panelOpened() {
         panelOpen = true
         refresh()
         guard busy == nil else { return }
+        if NSEvent.modifierFlags.contains(.option) { forgetPreview() }
         if Janitor.isRunning() {
             watchScheduledRun()
-        } else if previewIsStale || previewPredatesRun
+        } else if restored || previewIsStale || previewPredatesRun
                     || preview.map({ -$0.finishedAt.timeIntervalSinceNow > Self.previewMaxAge }) ?? true {
             Task { await runPreview() }
         }
@@ -308,8 +334,7 @@ final class Store: ObservableObject {
                 guard let self, !Janitor.isRunning() else { return }
                 timer.invalidate()
                 self.busy = nil
-                self.preview = nil
-                self.previewedWith = nil
+                self.forgetPreview()
                 self.refresh()
                 if self.panelOpen { await self.runPreview() }
             }
@@ -340,23 +365,26 @@ final class Store: ObservableObject {
         if let report = outcome.report {
             preview = report
             previewedWith = cfg
+            restored = false
+            try? SavedPreview(report: report, config: cfg).save()
             // Settings changed, or a real run came and went, while it ran.
             if previewIsStale || previewPredatesRun, panelOpen { await runPreview() }
         }
     }
 
-    /// Can run while a preview refreshes: the CLI acts only on ids it still plans.
-    var canClean: Bool { (busy == nil || busy == .previewing) && !planned.isEmpty }
+    /// Can run while a preview refreshes, as the CLI acts only on ids it still plans, but
+    /// never from a saved preview.
+    var canClean: Bool { !restored && (busy == nil || busy == .previewing) && !planned.isEmpty }
 
     func clean() async {
-        let ids = planned.map(\.id)
+        let targets = planned.map { (id: $0.id, bytes: $0.bytes) }
         guard live, canClean else { return }
         previewID += 1
         confirmingClean = false
         scan = nil
         busy = .cleaning
         problem = nil
-        let outcome = await JanitorRunner.run(dryRun: false, only: ids)
+        let outcome = await JanitorRunner.run(dryRun: false, only: targets)
         busy = nil
         refresh()
         if outcome.locked { return watchScheduledRun() }

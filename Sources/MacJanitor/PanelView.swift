@@ -37,6 +37,8 @@ private struct OverviewView: View {
                 ProblemBanner(text: problem) { store.problem = nil }
             }
             CategoryGrid()
+                .opacity(store.restored ? 0.5 : 1)
+                .animation(.easeOut(duration: 0.2), value: store.restored)
             CleanArea()
             FooterView().padding(.horizontal, 2).padding(.top, 2)
         }
@@ -64,6 +66,12 @@ private struct HeroCard: View {
                      + (store.isLowDisk ? ", running low" : ""))
                     .font(.system(size: 11.5))
                     .foregroundStyle(store.isLowDisk ? AnyShapeStyle(Palette.critical) : AnyShapeStyle(.secondary))
+                if store.purgeBacklog > 0 {
+                    Text("\(Format.bytes(store.purgeBacklog)) from earlier cleans still being deleted")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(.trailing, 22)
             Spacer(minLength: 0)
@@ -112,7 +120,9 @@ private struct HeroCard: View {
     private var headline: some View {
         switch store.busy {
         case .previewing:
-            if store.preview != nil {
+            if store.restored {
+                BigNumber(text: "Refreshing…", caption: "")
+            } else if store.preview != nil {
                 BigNumber(text: Format.bytes(store.plannedBytes), caption: "refreshing")
             } else if store.plannedBytes > 0 {
                 BigNumber(text: Format.bytes(store.plannedBytes), caption: "found so far")
@@ -233,9 +243,9 @@ private struct CategoryTile: View {
     @State private var hovering = false
 
     var body: some View {
-        let bytes = store.plannedBytes(category)
-        let covered = store.covers(category)
-        let empty = covered && bytes == 0
+        let issues = store.issues(category)
+        let state = TileState(covered: store.covers(category), bytes: store.plannedBytes(category), hasIssue: !issues.isEmpty)
+        let empty = state == .nothing
         Button { store.selected = category } label: {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top) {
@@ -244,12 +254,12 @@ private struct CategoryTile: View {
                         .foregroundStyle(empty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Palette.icon))
                         .frame(height: 18)
                     Spacer()
-                    if !store.issues(category).isEmpty {
+                    if !issues.isEmpty {
                         Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10)).foregroundStyle(Palette.warning)
                     }
                 }
                 Spacer(minLength: 8)
-                sizeText(bytes: bytes, covered: covered)
+                sizeText(state)
                 Text(category.title)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -266,18 +276,39 @@ private struct CategoryTile: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .accessibilityLabel("\(category.title), \(covered ? Format.bytes(bytes) : "checking")")
+        .help(issues.map(ProblemBanner.shorten).joined(separator: "\n"))
+        .accessibilityLabel("\(category.title), \(Self.spoken(state))")
         .pointingCursor()
     }
 
+    private static func spoken(_ state: TileState) -> String {
+        switch state {
+        case .checking: return "checking"
+        case .found(let bytes): return Format.bytes(bytes)
+        case .nothing: return "none"
+        case .unchecked: return "couldn't check"
+        }
+    }
+
     @ViewBuilder
-    private func sizeText(bytes: Int64, covered: Bool) -> some View {
-        if covered {
-            Text(bytes > 0 ? Format.bytes(bytes) : "None")
+    private func sizeText(_ state: TileState) -> some View {
+        switch state {
+        case .found(let bytes):
+            Text(Format.bytes(bytes))
                 .font(.system(size: 17, weight: .semibold))
                 .monospacedDigit()
-                .foregroundStyle(bytes > 0 ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
-        } else {
+        case .nothing:
+            Text("None")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.tertiary)
+        case .unchecked:
+            Text("Couldn't check")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .frame(height: 21)
+        case .checking:
             HStack(spacing: 5) {
                 ProgressView().controlSize(.mini)
                 Text("Checking").font(.system(size: 12, weight: .medium)).foregroundStyle(.tertiary)
@@ -406,7 +437,7 @@ private struct FooterView: View {
 
     private var lastRunText: String {
         guard let run = store.lastRun else { return "Mac Janitor has not cleaned anything yet." }
-        let freed = run.freeBytesAfter - run.freeBytesBefore
+        let freed = run.freedBytes
         let removed = run.actions.filter { $0.status == .removed }.count
         let what = freed > 0 ? "freed \(Format.bytes(freed))" : "removed \(removed) items"
         return "Last clean \(Format.ago(run.finishedAt)), \(what)."

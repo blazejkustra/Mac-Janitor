@@ -3,7 +3,7 @@ import JanitorCLI
 import JanitorCore
 
 let args = Array(CommandLine.arguments.dropFirst())
-if CLI.isRun(args) {
+if CLI.handles(args) {
     exit(CLI.main(args))
 }
 if args.first == AccessCheck.argument {

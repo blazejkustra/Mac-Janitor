@@ -100,7 +100,7 @@ final class CLIOptionsTests: XCTestCase {
         XCTAssertNil(CLI.Options.parse(["run", "--force"]))
         XCTAssertNil(CLI.Options.parse(["clean"]))
         XCTAssertNil(CLI.Options.parse(["run", "--only"]))
-        XCTAssertFalse(CLI.isRun(["--snapshot", "/tmp"]))
-        XCTAssertTrue(CLI.isRun(["run", "--scheduled"]))
+        XCTAssertFalse(CLI.handles(["--snapshot", "/tmp"]))
+        XCTAssertTrue(CLI.handles(["run", "--scheduled"]))
     }
 }

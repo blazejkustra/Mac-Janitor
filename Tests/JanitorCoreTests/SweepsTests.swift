@@ -181,7 +181,7 @@ final class SweepsTests: XCTestCase {
         XCTAssertFalse(FS.exists(root + "/doomed"))
         let parked = try FileManager.default.contentsOfDirectory(atPath: FS.purgeDir)
         XCTAssertFalse(parked.isEmpty)
-        FS.purge(detached: false)
+        XCTAssertEqual(FS.purgeNow().removed, 1)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: FS.purgeDir), [])
     }
 
@@ -196,12 +196,21 @@ final class SweepsTests: XCTestCase {
         let lockPath = root + "/run.lock"
         let held = open(lockPath, O_CREAT | O_RDWR, 0o644)
         XCTAssertEqual(flock(held, LOCK_EX | LOCK_NB), 0)
-        FS.purge(detached: true)
+        Janitor.spawnDetached(["/bin/rm", "-rf", "--", tree])
         close(held)
         XCTAssertTrue(FS.exists(tree), "rm finished before the lock could be probed")
         let probe = open(lockPath, O_RDWR)
         defer { close(probe) }
         XCTAssertEqual(flock(probe, LOCK_EX | LOCK_NB), 0)
+    }
+
+    func testDetachedPurgeRunsInItsOwnProcessGroup() throws {
+        let out = root + "/pgid"
+        Janitor.spawnDetached(["/bin/sh", "-c", "ps -o pgid= -p $$ > '\(out).tmp' && mv '\(out).tmp' '\(out)'"])
+        let deadline = Date().addingTimeInterval(10)
+        while !FS.exists(out) && Date() < deadline { usleep(50_000) }
+        let pgid = try String(contentsOfFile: out, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertNotEqual(Int32(pgid), getpgrp())
     }
 
     func testWalksLeaveAskingFoldersAloneWithoutFullDiskAccess() {
