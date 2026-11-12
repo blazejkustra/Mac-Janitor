@@ -19,7 +19,6 @@ OUT="release"
 VERSIONED_DMG="$OUT/MacJanitor-$VERSION.dmg"
 STABLE_DMG="$OUT/MacJanitor.dmg"
 ADHOC=false
-FINDER_INFO_CUSTOM_ICON="0000000000000000040000000000000000000000000000000000000000000000"
 
 step() { printf '\n> %s\n' "$*"; }
 fail() { printf '\nerror: %s\n' "$*" >&2; exit 1; }
@@ -91,25 +90,10 @@ notarize_app() {
 
 make_dmg() {
   step "Making $VERSIONED_DMG"
-  local stage="$WORK/dmg"
-  mkdir -p "$stage" "$OUT"
-  ditto "$APP" "$stage/Mac Janitor.app"
-  ln -s /Applications "$stage/Applications"
-  cp assets/AppIcon.icns "$stage/.VolumeIcon.icns"
-  rm -f "$VERSIONED_DMG" "$WORK/rw.dmg"
-  hdiutil create -quiet -volname "Mac Janitor" -srcfolder "$stage" -fs HFS+ -format UDRW "$WORK/rw.dmg"
-  set_volume_icon "$WORK/rw.dmg"
-  hdiutil convert -quiet "$WORK/rw.dmg" -format UDZO -imagekey zlib-level=9 -o "$VERSIONED_DMG"
+  ./scripts/make-dmg.sh "$APP" "$VERSIONED_DMG"
   if ! $ADHOC; then
     sign "$VERSIONED_DMG"
   fi
-}
-
-set_volume_icon() {
-  local mount
-  mount="$(hdiutil attach -nobrowse -noverify -noautoopen "$1" | awk -F'\t' '/\/Volumes\// { print $NF }')"
-  xattr -wx com.apple.FinderInfo "$FINDER_INFO_CUSTOM_ICON" "$mount"
-  hdiutil detach -quiet "$mount"
 }
 
 notarize_dmg() {

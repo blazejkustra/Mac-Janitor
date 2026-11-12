@@ -128,7 +128,8 @@ swift run MacJanitor --snapshot /tmp/shots
 Releases: bump `VERSION`, push a `v<version>` tag, and `.github/workflows/release.yml` drafts a
 release with the notarized DMG. It needs the `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `ASC_KEY_ID`,
 `ASC_ISSUER_ID` and `ASC_KEY_P8` (App Store Connect API key) secrets. `./scripts/release.sh --adhoc`
-makes an unsigned test DMG.
+makes an unsigned test DMG. The DMG window's layout lives in `install/dmg/`, and
+`python3 scripts/dmg-background.py` redraws its background after a change there.
 
 <details>
 <summary>Layout and files</summary>
