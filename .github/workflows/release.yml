@@ -4,7 +4,7 @@
 # must never become "latest". By hand (workflow_dispatch) without the certificate: an ad-hoc DMG
 # as a workflow artifact, no release.
 # Secrets: MACOS_CERT_P12 (Developer ID Application certificate and key, .p12, base64),
-# MACOS_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD (app-specific).
+# MACOS_CERT_PASSWORD, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (App Store Connect API key, .p8 contents).
 name: Release
 
 on:
@@ -45,9 +45,9 @@ jobs:
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
           set +x
           KC="$RUNNER_TEMP/macjanitor-signing.keychain-db"
@@ -60,7 +60,10 @@ jobs:
           rm -f "$RUNNER_TEMP/cert.p12"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PASS" "$KC" > /dev/null
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
-          xcrun notarytool store-credentials macjanitor-notary --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --keychain "$KC"
+          ASC_KEY="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$ASC_KEY"
+          trap 'rm -f "$ASC_KEY"' EXIT
+          xcrun notarytool store-credentials macjanitor-notary --key "$ASC_KEY" --key-id "$ASC_KEY_ID" --issuer "$ASC_ISSUER_ID" --keychain "$KC"
           echo "MACJANITOR_NOTARY_KEYCHAIN=$KC" >> "$GITHUB_ENV"
 
       - name: Signed DMG
