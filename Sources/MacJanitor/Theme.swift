@@ -219,10 +219,12 @@ struct PillButtonStyle: ButtonStyle {
             .foregroundStyle(lit ? AnyShapeStyle(.white) : AnyShapeStyle(.tertiary))
             .padding(.horizontal, 16)
             .frame(height: 36)
-            .background(lit ? AnyShapeStyle(tint) : AnyShapeStyle(Palette.well), in: Capsule())
-            .overlay(Capsule().fill(.black.opacity(configuration.isPressed ? 0.12 : 0)))
-            .contentShape(Capsule())
+            .background(lit ? AnyShapeStyle(tint) : AnyShapeStyle(Palette.well), in: shape)
+            .overlay(shape.fill(.black.opacity(configuration.isPressed ? 0.12 : 0)))
+            .contentShape(shape)
     }
+
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous) }
 }
 
 /// A quieter pill for secondary actions.

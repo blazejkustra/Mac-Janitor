@@ -17,8 +17,8 @@ ARCH_FLAGS=""
 for arch in ${MACJANITOR_ARCHS:-}; do ARCH_FLAGS="$ARCH_FLAGS --arch $arch"; done
 
 # swiftc hands the SDK to the linking clang as --sysroot, which clang does not read the SDK
-# version from, so the binary records the deployment target as its SDK and AppKit draws the
-# pre-Tahoe window style (small corners). -isysroot records the real SDK.
+# version from, so the binary records the deployment target as its SDK and AppKit falls back
+# to the pre-Tahoe look. -isysroot records the real SDK.
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
 BUILD_FLAGS="$ARCH_FLAGS -Xswiftc -Xclang-linker -Xswiftc -isysroot -Xswiftc -Xclang-linker -Xswiftc $SDK"
 

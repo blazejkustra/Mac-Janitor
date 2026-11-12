@@ -6,7 +6,8 @@ enum Metrics {
     static let width: CGFloat = 360
     static let inset: CGFloat = 14
     static let listHeight: CGFloat = 400
-    static let cardRadius: CGFloat = 18
+    static let windowRadius: CGFloat = 22
+    static let cardRadius: CGFloat = 12
 }
 
 struct PanelView: View {
