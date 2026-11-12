@@ -148,7 +148,7 @@
 }
 .jt-dock .jt-sink { width: 46px; height: 46px; }
 .jt-dock .jt-sink svg { filter: none; }
-.jt-dock .jt-count { font-size: 28px; }
+.jt-dock .jt-count { font-size: 28px; min-width: 3.2ch; text-align: right; }
 .jt-dock .jt-unit { margin-left: 6px; font-size: 14px; }
 .jt-dock .jt-hint { padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, 0.14); font-size: 13.5px; color: rgba(255, 255, 255, 0.68); }
 @media (max-width: 640px) {
