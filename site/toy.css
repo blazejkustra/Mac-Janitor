@@ -111,7 +111,7 @@
 @keyframes jt-puff { from { transform: scale(0.2); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
 
 .jt-sink { position: relative; width: 60px; height: 60px; flex: none; will-change: transform; }
-.jt-sink svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 10px 22px rgba(37, 102, 148, 0.55)); }
+.jt-sink svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 10px 22px rgba(35, 87, 122, 0.55)); }
 .jt-sink .lid { transform-box: fill-box; transform-origin: 8% 100%; transition: transform 0.16s cubic-bezier(.3, 1.6, .5, 1); }
 .jt-sink.is-open .lid { transform: translateY(-14%) rotate(-16deg); }
 
