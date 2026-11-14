@@ -12,6 +12,7 @@ final class StatusPanel: NSObject, NSWindowDelegate {
     private var panel: NSPanel?
     private var outsideClicks: Any?
     private var storeChanges: AnyCancellable?
+    private var reminderChanges: AnyCancellable?
     private var top: NSPoint?
 
     func install(store: Store) {
@@ -21,6 +22,10 @@ final class StatusPanel: NSObject, NSWindowDelegate {
         self.item = item
         updateIcon(store)
         storeChanges = store.objectWillChange.receive(on: RunLoop.main).sink { [weak self, weak store] in
+            guard let store else { return }
+            MainActor.assumeIsolated { self?.updateIcon(store) }
+        }
+        reminderChanges = Updates.shared.reminder.$version.receive(on: RunLoop.main).sink { [weak self, weak store] _ in
             guard let store else { return }
             MainActor.assumeIsolated { self?.updateIcon(store) }
         }
@@ -84,6 +89,7 @@ final class StatusPanel: NSObject, NSWindowDelegate {
         let shape = RoundedRectangle(cornerRadius: Metrics.windowRadius, style: .circular)
         let host = NSHostingView(rootView: PanelView()
             .environmentObject(store)
+            .environmentObject(Updates.shared.reminder)
             .overlay(shape.strokeBorder(Palette.stroke)))
         host.translatesAutoresizingMaskIntoConstraints = false
         background.addSubview(host)
@@ -102,6 +108,8 @@ final class StatusPanel: NSObject, NSWindowDelegate {
             item?.button?.image = Self.hourglass
         } else if store.isLowDisk {
             item?.button?.image = Self.warning
+        } else if Updates.shared.reminder.version != nil {
+            item?.button?.image = Self.badgedGlyph
         } else {
             item?.button?.image = Self.glyph
         }
@@ -113,6 +121,24 @@ final class StatusPanel: NSObject, NSWindowDelegate {
             ?? NSImage(systemSymbolName: "internaldrive", accessibilityDescription: nil)!
         image.isTemplate = true
         image.accessibilityDescription = "Mac Janitor"
+        return image
+    }()
+
+    /// The glyph with a dot cut into its top-right corner, still a template.
+    private static let badgedGlyph: NSImage = {
+        let size = glyph.size
+        let dot = NSRect(x: size.width - 5, y: size.height - 5, width: 5, height: 5)
+        let image = NSImage(size: size, flipped: false) { rect in
+            glyph.draw(in: rect)
+            NSGraphicsContext.current?.compositingOperation = .clear
+            NSBezierPath(ovalIn: dot.insetBy(dx: -1.5, dy: -1.5)).fill()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: dot).fill()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "Mac Janitor, update available"
         return image
     }()
 

@@ -34,6 +34,7 @@ private struct OverviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HeroCard()
+            UpdateBanner()
             if !store.fullDiskAccess { AccessBanner() }
             if let problem = store.problem {
                 ProblemBanner(text: problem) { store.problem = nil }

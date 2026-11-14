@@ -6,7 +6,7 @@ import SwiftUI
 /// Debug builds only: with MACJANITOR_CAPTURE_DIR set, SIGUSR1 runs the commands in
 /// `<dir>/cmd` (one per line) so the live UI can be driven and captured without
 /// Screen Recording access: `open-panel`, `select <category>`, `back`, `confirm`,
-/// `onboarding <step>`, `settings`, `capture <name>`.
+/// `onboarding <step>`, `settings`, `update <version>` (an empty version clears it), `capture <name>`.
 @MainActor
 enum DebugCapture {
     private static var source: DispatchSourceSignal?
@@ -37,6 +37,7 @@ enum DebugCapture {
         case "confirm": store?.confirmingClean = argument != "off"
         case "onboarding": Windows.shared.showOnboarding(step: step(argument))
         case "settings": Windows.shared.showSettings()
+        case "update": Updates.shared.reminder.version = argument.isEmpty ? nil : argument
         case "capture": capture(to: dir, name: argument)
         case "capture-menubar": captureMenuBar(to: dir)
         case "windows":

@@ -24,7 +24,7 @@ jobs:
     env:
       HAS_CERT: ${{ secrets.MACOS_CERT_P12 != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -91,7 +91,7 @@ jobs:
           echo "::warning::No MACOS_CERT_P12 secret: an ad-hoc signed DMG, not notarized."
           ./scripts/release.sh --adhoc
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MacJanitor-dmg
           path: |
