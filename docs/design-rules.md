@@ -81,7 +81,15 @@ before doing it.
 ## Site
 
 - The same palette, one accent, four type sizes and the 4-point scale apply to
-  site/. Every link and button gets `cursor: pointer`.
+  site/. The sizes are tokens in styles.css: `--title` (36 to 56), `--heading`
+  (24 to 32), `--body` 16, `--label` 13. Weights 400 and 600.
+- Radii: 12 for buttons and nav links, 24 for cards and dialogs. A card gets a 1px
+  inset line or a soft shadow, never both.
+- One primary button in the hero. A second action appears only when it leads
+  somewhere real (the video button stays hidden until assets/demo.mp4 exists).
+- Every link and button gets `cursor: pointer`. The folder toy (toy.js, toy.css)
+  keeps its own styling.
+
 - Show the real app: screenshots and the panel rendered from the app's own snapshot
   fixtures, never an invented mockup.
 
