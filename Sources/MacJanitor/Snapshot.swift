@@ -171,8 +171,8 @@ enum Snapshot {
         return scan
     }
 
-    private static func panel(_ store: Store) -> AnyView {
-        AnyView(PanelView().environmentObject(store))
+    private static func panel(_ store: Store, update: String? = nil) -> AnyView {
+        AnyView(PanelView().environmentObject(store).environmentObject(UpdateReminder(version: update)))
     }
 
     private static func window<V: View>(_ view: V, _ store: Store) -> AnyView {
@@ -244,6 +244,7 @@ enum Snapshot {
                 panel(Store(freeBytes: 39 * gb, totalBytes: total, lastRun: deferredClean, preview: mixedPreview,
                             agentStatus: .enabled, purgeBacklog: 175 * gb))
             }),
+            ("o-update", { panel(normal, update: "1.0.5") }),
         ]
     }
 }
