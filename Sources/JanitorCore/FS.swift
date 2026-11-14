@@ -150,40 +150,52 @@ public enum FS {
             // Fails across volumes, among others; then it is removed in place.
             if rename(path, purgeDir + "/" + UUID().uuidString) == 0 { return }
         }
-        do {
-            try FileManager.default.removeItem(atPath: path)
-        } catch {
-            // Read-only entries (some package caches) defeat removeItem; rm copes.
-            let r = Shell.run(["/bin/rm", "-rf", "--", path], timeout: 1800)
-            if !r.ok || exists(path) { throw JanitorError("could not remove \(path): \(r.stderr)") }
-        }
+        try removeTree(path)
+    }
+
+    /// Removes a tree even where read-only folders or locked files (some package caches)
+    /// stop both removeItem and `rm -rf`. Symlinks are never followed.
+    static func removeTree(_ path: String) throws {
+        if (try? FileManager.default.removeItem(atPath: path)) != nil { return }
+        Shell.run(["/usr/bin/chflags", "-R", "nouchg", path], timeout: 1800)
+        Shell.run(["/bin/chmod", "-R", "u+w", path], timeout: 1800)
+        let r = Shell.run(["/bin/rm", "-rf", "--", path], timeout: 3600)
+        if !r.ok || exists(path) { throw JanitorError("could not remove \(path): \(r.stderr)") }
     }
 }
 
 extension FS {
-    /// Unlinks what `remove` deferred. Detached, it outlives this process and inherits
-    /// none of its descriptors: not the run lock, nor the stdout a caller reads to EOF.
-    public static func purge(detached: Bool) {
-        let entries = ((try? FileManager.default.contentsOfDirectory(atPath: purgeDir)) ?? []).map { purgeDir + "/" + $0 }
-        guard !entries.isEmpty else { return }
-        guard detached else {
-            Shell.run(["/bin/rm", "-rf", "--"] + entries, timeout: 3600)
-            return
+    public struct PurgeResult {
+        public var removed = 0
+        public var bytes: Int64 = 0
+        public var failures: [String] = []
+    }
+
+    static var purgeEntries: [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: purgeDir)) ?? []).map { purgeDir + "/" + $0 }
+    }
+
+    /// What `remove` deferred and is not unlinked yet.
+    public static var purgeBacklogBytes: Int64 { purgeEntries.reduce(0) { $0 + allocatedSize($1) } }
+
+    /// Unlinks everything in `purgeDir`. Purges take turns, so one started while another
+    /// runs picks up what arrived meanwhile.
+    static func purgeNow() -> PurgeResult {
+        let lockFD = open(purgeDir + ".lock", O_CREAT | O_RDWR, 0o644)
+        if lockFD >= 0 { flock(lockFD, LOCK_EX) }
+        defer { if lockFD >= 0 { close(lockFD) } }
+        var result = PurgeResult()
+        for entry in purgeEntries {
+            let bytes = allocatedSize(entry)
+            do {
+                try removeTree(entry)
+                result.removed += 1
+                result.bytes += bytes
+            } catch {
+                result.failures.append("\(error)")
+            }
         }
-        var attr: posix_spawnattr_t?
-        posix_spawnattr_init(&attr)
-        defer { posix_spawnattr_destroy(&attr) }
-        posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT))
-        var files: posix_spawn_file_actions_t?
-        posix_spawn_file_actions_init(&files)
-        defer { posix_spawn_file_actions_destroy(&files) }
-        for fd: Int32 in 0...2 { posix_spawn_file_actions_addopen(&files, fd, "/dev/null", O_RDWR, 0) }
-        let argv = (["/bin/rm", "-rf", "--"] + entries).map { strdup($0) } + [nil]
-        defer { argv.forEach { free($0) } }
-        var pid = pid_t()
-        if posix_spawn(&pid, "/bin/rm", &files, &attr, argv, environ) != 0 {
-            Shell.run(["/bin/rm", "-rf", "--"] + entries, timeout: 3600)
-        }
+        return result
     }
 }
 

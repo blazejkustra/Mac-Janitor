@@ -84,9 +84,12 @@ public struct Report: Codable, Sendable {
     public var actions: [Action]
     public var skips: [Skip]
     public var issues: [Issue]
+    /// Removal finished after `freeBytesAfter` was read, so that misses what the run freed.
+    public var removalDeferred: Bool?
 
     public init(startedAt: Date, finishedAt: Date, dryRun: Bool, freeBytesBefore: Int64,
-                freeBytesAfter: Int64, actions: [Action], skips: [Skip], issues: [Issue]) {
+                freeBytesAfter: Int64, actions: [Action], skips: [Skip], issues: [Issue],
+                removalDeferred: Bool? = nil) {
         self.startedAt = startedAt
         self.finishedAt = finishedAt
         self.dryRun = dryRun
@@ -95,6 +98,16 @@ public struct Report: Codable, Sendable {
         self.actions = actions
         self.skips = skips
         self.issues = issues
+        self.removalDeferred = removalDeferred
+    }
+
+    public var removedBytes: Int64 {
+        actions.filter { $0.status == .removed }.reduce(0) { $0 + $1.bytes }
+    }
+
+    /// The free-space change, or the measured sizes of what went when removal was deferred.
+    public var freedBytes: Int64 {
+        removalDeferred == true ? removedBytes : freeBytesAfter - freeBytesBefore
     }
 
     public static func load(from url: URL = Paths.lastRun) -> Report? {
@@ -130,6 +143,8 @@ public enum Paths {
     public static let salvage = support.appendingPathComponent("salvage")
     public static let config = support.appendingPathComponent("config.json")
     /// When each Docker image was last seen in use; see `DockerJanitor.lastActive`.
+    /// The last finished preview, shown at launch until a fresh one replaces it.
+    public static let savedPreview = support.appendingPathComponent("preview.json")
     public static let dockerSeen = support.appendingPathComponent("docker-seen.json")
     public static let log = home.appendingPathComponent("Library/Logs/mac-janitor.log")
     public static let launchdLabel = "com.ignacy.mac-janitor"

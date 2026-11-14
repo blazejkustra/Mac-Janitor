@@ -90,6 +90,14 @@ enum Snapshot {
                freeBytesAfter: 124_900_000_000, actions: [], skips: [], issues: [])
     }
 
+    /// A clean from the panel: removal finished after free space was read.
+    private static var deferredClean: Report {
+        let removed = [("\(worktrees)/old-spike", 31_400_000_000), ("\(home)/Library/Caches/com.example.big", 20_600_000_000)]
+            .map { Action(category: .cache, target: $0.0, reason: "", bytes: $0.1, status: .removed) }
+        return Report(startedAt: ago(26), finishedAt: ago(25.9), dryRun: false, freeBytesBefore: 39 * gb,
+                      freeBytesAfter: 39 * gb, actions: removed, skips: [], issues: [], removalDeferred: true)
+    }
+
     private static func dryRun(_ actions: [Action], skips: [Skip] = [], issues: [Issue] = []) -> Report {
         Report(startedAt: ago(0.02), finishedAt: ago(0.01), dryRun: true, freeBytesBefore: 124 * gb,
                freeBytesAfter: 124 * gb, actions: actions, skips: skips, issues: issues)
@@ -228,6 +236,14 @@ enum Snapshot {
             ("j-onboarding-access-granted", { onboarding(.access, normal) }),
             ("k-onboarding-schedule", { onboarding(.schedule, normal) }),
             ("l-onboarding-done", { onboarding(.done, normal) }),
+            ("m-refreshing", {
+                panel(Store(freeBytes: 91 * gb, totalBytes: total, lastRun: deferredClean, preview: mixedPreview,
+                            restored: true, busy: .previewing, agentStatus: .enabled, scan: ScanState()))
+            }),
+            ("n-purging", {
+                panel(Store(freeBytes: 39 * gb, totalBytes: total, lastRun: deferredClean, preview: mixedPreview,
+                            agentStatus: .enabled, purgeBacklog: 175 * gb))
+            }),
         ]
     }
 }

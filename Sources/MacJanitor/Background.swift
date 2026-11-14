@@ -1,4 +1,5 @@
 import Foundation
+import JanitorCLI
 import JanitorCore
 import ServiceManagement
 
@@ -22,23 +23,13 @@ enum Background {
     }
 }
 
-/// The LaunchAgent the developer install script wrote, which ran `janitor` from the repo folder.
-enum LegacyAgent {
-    static let label = "com.ignacy.mac-janitor"
-    static var plist: URL { Paths.home.appendingPathComponent("Library/LaunchAgents/\(label).plist") }
-
-    static var isInstalled: Bool { FileManager.default.fileExists(atPath: plist.path) }
-
-    static func remove() {
-        guard isInstalled else { return }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
-        process.arguments = ["bootout", "gui/\(getuid())/\(label)"]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try? process.run()
-        process.waitUntilExit()
-        try? FileManager.default.removeItem(at: plist)
+extension LegacyAgent {
+    /// Off the main thread, so a slow or failing launchctl never holds up launch.
+    static func removeInBackground() {
+        DispatchQueue.global(qos: .utility).async {
+            guard let done = remove() else { return }
+            RunLog(dryRun: false, quiet: true).write(done)
+        }
     }
 }
 

@@ -13,14 +13,14 @@ enum JanitorRunner {
 
     static var executable: URL { Bundle.main.executableURL! }
 
-    /// With `only`, a real run acts on just those action ids. `onEvent` gets the run's
-    /// progress, on a background thread.
-    static func run(dryRun: Bool, only: [String]? = nil,
+    /// With `only`, a real run acts on just those action ids, recording the sizes given
+    /// for them. `onEvent` gets the run's progress, on a background thread.
+    static func run(dryRun: Bool, only: [(id: String, bytes: Int64)]? = nil,
                     onEvent: @escaping @Sendable (ScanEvent) -> Void = { _ in }) async -> Outcome {
         await Task.detached(priority: .userInitiated) { runBlocking(dryRun: dryRun, only: only, onEvent: onEvent) }.value
     }
 
-    private static func runBlocking(dryRun: Bool, only: [String]?, onEvent: @escaping (ScanEvent) -> Void) -> Outcome {
+    private static func runBlocking(dryRun: Bool, only: [(id: String, bytes: Int64)]?, onEvent: @escaping (ScanEvent) -> Void) -> Outcome {
         let exe = executable
         var arguments = ["run", "--json", "--progress"] + (dryRun ? ["--dry-run"] : [])
         var onlyFile: URL?
@@ -29,7 +29,7 @@ enum JanitorRunner {
             let file = FileManager.default.temporaryDirectory
                 .appendingPathComponent("janitor-only-\(UUID().uuidString).txt")
             do {
-                try only.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8)
+                try only.map { "\($0.id)\t\($0.bytes)" }.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8)
             } catch {
                 return Outcome(problem: "Could not write \(file.path): \(error.localizedDescription)")
             }

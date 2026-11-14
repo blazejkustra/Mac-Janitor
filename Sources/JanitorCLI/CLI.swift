@@ -2,17 +2,25 @@ import Foundation
 import JanitorCore
 
 /// `janitor run ...`: what launchd runs, and what the applet runs to preview and clean.
+/// `janitor reset-cache` drops the saved preview, so the applet scans from scratch next launch.
+/// `janitor purge` unlinks what cleans moved aside; runs start it detached.
 /// The applet's own executable takes the same arguments, so one code identity holds Full Disk Access.
 public enum CLI {
     public static let usage = """
     usage: janitor run [--dry-run] [--json] [--scheduled] [--progress] [--only <file>]
+           janitor reset-cache
+           janitor purge
 
       --dry-run      plan only; delete nothing and leave last-run.json alone
       --json         print the report as JSON instead of one line per action
       --scheduled    the launchd entry point: runs only when unpaused and either
                      intervalHours have passed or free space is below lowDiskGB
       --progress     stream what the run is doing to stderr, one "\(ScanEvent.linePrefix)<json>" line per event
-      --only <file>  act only on these action ids (one per line), if still planned
+      --only <file>  act only on these action ids (one per line), if still planned;
+                     "<id>\t<bytes>" also gives the size a preview measured
+
+      reset-cache    forget the saved preview; the app scans from scratch next launch
+      purge          delete what earlier cleans moved aside but did not finish deleting
     """
 
     public struct Options: Equatable {
@@ -44,10 +52,12 @@ public enum CLI {
         }
     }
 
-    /// Whether these arguments ask for a headless run rather than the applet.
-    public static func isRun(_ arguments: [String]) -> Bool { arguments.first == "run" }
+    /// Whether these arguments ask for a headless command rather than the applet.
+    public static func handles(_ arguments: [String]) -> Bool { ["run", "reset-cache", "purge"].contains(arguments.first) }
 
     public static func main(_ arguments: [String]) -> Int32 {
+        if arguments == ["reset-cache"] { return resetCache() }
+        if arguments == ["purge"] { return purge() }
         guard let options = Options.parse(arguments) else {
             printError(usage)
             return 2
@@ -67,12 +77,13 @@ public enum CLI {
         }
 
         var only: Set<String>?
+        var sizes: [String: Int64] = [:]
         if let file = options.onlyFile {
             guard let text = try? String(contentsOfFile: file, encoding: .utf8) else {
                 printError("janitor: cannot read \(file)")
                 return 2
             }
-            only = Set(text.split(separator: "\n").map(String.init))
+            (only, sizes) = parseOnly(text)
         }
         if options.progress {
             ScanProgress.sink = { event in printError(event.line) }
@@ -80,7 +91,7 @@ public enum CLI {
 
         do {
             log.write("run started")
-            let report = try Janitor.run(cfg, dryRun: options.dryRun, only: only, log: log.write)
+            let report = try Janitor.run(cfg, dryRun: options.dryRun, only: only, sizes: sizes, log: log.write)
             let freed = ByteCountFormatter.string(fromByteCount: report.freeBytesAfter - report.freeBytesBefore, countStyle: .file)
             let planned = ByteCountFormatter.string(fromByteCount: report.actions.reduce(0) { $0 + $1.bytes }, countStyle: .file)
             log.write("run finished: \(report.actions.count) actions (\(planned)), free space change \(freed)")
@@ -96,23 +107,49 @@ public enum CLI {
         }
     }
 
+    /// One action id per line, optionally followed by a tab and its measured size.
+    static func parseOnly(_ text: String) -> (ids: Set<String>, sizes: [String: Int64]) {
+        var ids: Set<String> = []
+        var sizes: [String: Int64] = [:]
+        for line in text.split(separator: "\n").map(String.init) {
+            guard let tab = line.lastIndex(of: "\t"), let bytes = Int64(line[line.index(after: tab)...]) else {
+                ids.insert(line)
+                continue
+            }
+            let id = String(line[..<tab])
+            ids.insert(id)
+            sizes[id] = bytes
+        }
+        return (ids, sizes)
+    }
+
+    static func purge() -> Int32 {
+        Janitor.purgeLeftovers(log: RunLog(dryRun: false, quiet: false).write).failures.isEmpty ? 0 : 1
+    }
+
+    static func resetCache() -> Int32 {
+        let text = SavedPreview.discard() ? "Removed the saved preview." : "No saved preview."
+        FileHandle.standardOutput.write(Data((text + "\n").utf8))
+        return 0
+    }
+
     static func printError(_ text: String) {
         FileHandle.standardError.write(Data((text + "\n").utf8))
     }
 }
 
 /// Prints each line unless quiet, and appends real runs to `Paths.log`.
-struct RunLog {
+public struct RunLog {
     let dryRun: Bool
     let quiet: Bool
     private let stamp = ISO8601DateFormatter()
 
-    init(dryRun: Bool, quiet: Bool) {
+    public init(dryRun: Bool, quiet: Bool) {
         self.dryRun = dryRun
         self.quiet = quiet
     }
 
-    func write(_ text: String) {
+    public func write(_ text: String) {
         let line = "\(stamp.string(from: Date())) \(dryRun ? "[dry-run] " : "")\(text)\n"
         if !quiet { FileHandle.standardOutput.write(Data(line.utf8)) }
         // Dry runs come from people previewing; the log is the record of real runs.

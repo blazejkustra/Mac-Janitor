@@ -1,4 +1,5 @@
 import AppKit
+import JanitorCore
 import SwiftUI
 
 struct MacJanitorApp: App {
@@ -18,6 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // No Dock icon, even when run as a bare binary without the bundle's LSUIElement.
         NSApp.setActivationPolicy(.accessory)
+        LegacyAgent.removeInBackground()
+        DispatchQueue.global(qos: .utility).async { Janitor.purgeInBackground() }
         #if DEBUG
         MainActor.assumeIsolated { DebugCapture.install() }
         #endif

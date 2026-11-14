@@ -1,7 +1,7 @@
 import Foundation
 
 public enum Janitor {
-    static var lockPath: String { Paths.support.appendingPathComponent("run.lock").path }
+    static var lockPath = Paths.support.appendingPathComponent("run.lock").path
 
     /// True while a real run, scheduled or not, holds the run lock.
     public static func isRunning() -> Bool {
@@ -30,7 +30,9 @@ public enum Janitor {
     /// A real run holds an exclusive lock for the duration, so overlapping real runs
     /// fail fast. A dry run takes none: it deletes nothing, and previews must neither
     /// wait for nor block the scheduled run.
-    public static func run(_ cfg: Config, dryRun: Bool, only: Set<String>? = nil,
+    /// `sizes` are the preview's measurements by action id, for the targets a clean
+    /// with `only` no longer measures itself.
+    public static func run(_ cfg: Config, dryRun: Bool, only: Set<String>? = nil, sizes: [String: Int64] = [:],
                            log: (String) -> Void = { _ in }) throws -> Report {
         var cfg = cfg
         // Planning a category takes up to minutes (fetch, gh, walks); skip those `only` cannot name.
@@ -42,6 +44,7 @@ public enum Janitor {
         defer { lockFD.map { _ = close($0) } }
         // A clean from the applet returns once targets are out of the way, not unlinked.
         FS.deferRemoval = !dryRun && only != nil
+        if !dryRun { purgeInBackground() }
 
         let started = Date()
         let freeBefore = freeDiskBytes()
@@ -109,6 +112,8 @@ public enum Janitor {
         // Large files are previewed, but only ever removed by name.
         func wanted(_ a: Action) -> Bool { only?.contains(a.id) ?? (dryRun || a.category != .largeFile) }
         func record(_ a: Action) {
+            var a = a
+            if a.bytes == 0, let size = sizes[a.id] { a.bytes = size }
             actions.append(a)
             let size = ByteCountFormatter.string(fromByteCount: a.bytes, countStyle: .file)
             var line = "\(a.status.rawValue) \(a.category.rawValue) \(a.target) (\(size)): \(a.reason)"
@@ -142,12 +147,13 @@ public enum Janitor {
         for i in issues { log("issue \(i.category.rawValue): \(i.message)") }
 
         // Nobody waits on a scheduled run, so it frees the space before measuring it.
-        if !dryRun && !FS.deferRemoval { FS.purge(detached: false) }
+        if !dryRun && !FS.deferRemoval { purgeLeftovers(log: log) }
         let report = Report(startedAt: started, finishedAt: Date(), dryRun: dryRun,
                             freeBytesBefore: freeBefore, freeBytesAfter: freeDiskBytes(),
-                            actions: actions, skips: skips, issues: issues)
-        if !dryRun { try persist(report) }
-        if !dryRun && FS.deferRemoval { FS.purge(detached: true) }
+                            actions: actions, skips: skips, issues: issues,
+                            removalDeferred: FS.deferRemoval ? true : nil)
+        if !dryRun { try recordRun(report) }
+        if !dryRun && FS.deferRemoval { purgeInBackground() }
         return report
     }
 
@@ -173,24 +179,77 @@ public enum Janitor {
         }
     }
 
+    /// Where a real run's report goes; tests swap it to keep the user's records untouched.
+    static var recordRun: (Report) throws -> Void = persist
+    static var historyURL = Paths.history
+    /// Starts `janitor purge` in its own session, so it outlives this process; tests swap it.
+    static var spawnPurge: () -> Void = { spawnDetached([executable, "purge"]) }
+
+    static var executable: String { Bundle.main.executablePath ?? CommandLine.arguments[0] }
+
+    /// Unlinks what earlier cleans moved aside, without waiting for it.
+    public static func purgeInBackground() {
+        guard !FS.purgeEntries.isEmpty else { return }
+        spawnPurge()
+    }
+
+    /// Unlinks what cleans moved aside, logging and recording what that freed.
+    @discardableResult
+    public static func purgeLeftovers(log: (String) -> Void) -> FS.PurgeResult {
+        let started = Date()
+        let result = FS.purgeNow()
+        for failure in result.failures { log("purge failed: \(failure)") }
+        guard result.removed > 0 else { return result }
+        log("purged \(result.removed) items (\(ByteCountFormatter.string(fromByteCount: result.bytes, countStyle: .file)))")
+        try? appendHistory([
+            "startedAt": ISO8601DateFormatter().string(from: started),
+            "purged": result.removed,
+            "purgedBytes": result.bytes,
+        ])
+        return result
+    }
+
+    /// Detached from this process's session and descriptors: not the run lock, nor the
+    /// stdout a caller reads to EOF. Runs `argv` in place if it cannot be spawned.
+    static func spawnDetached(_ argv: [String]) {
+        var attr: posix_spawnattr_t?
+        posix_spawnattr_init(&attr)
+        defer { posix_spawnattr_destroy(&attr) }
+        posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT))
+        var files: posix_spawn_file_actions_t?
+        posix_spawn_file_actions_init(&files)
+        defer { posix_spawn_file_actions_destroy(&files) }
+        for fd: Int32 in 0...2 { posix_spawn_file_actions_addopen(&files, fd, "/dev/null", O_RDWR, 0) }
+        let cArgs = argv.map { strdup($0) } + [nil]
+        defer { cArgs.forEach { free($0) } }
+        var pid = pid_t()
+        if posix_spawn(&pid, argv[0], &files, &attr, cArgs, environ) != 0 {
+            Shell.run(argv, timeout: 3600)
+        }
+    }
+
     static func persist(_ report: Report) throws {
+        SavedPreview.discard()
         try JSONEncoder.janitor.encode(report).write(to: Paths.lastRun, options: .atomic)
-        let removed = report.actions.filter { $0.status == .removed }
         let summary: [String: Any] = [
             "startedAt": ISO8601DateFormatter().string(from: report.startedAt),
-            "freedBytes": report.freeBytesAfter - report.freeBytesBefore,
-            "removed": removed.count,
+            "freedBytes": report.freedBytes,
+            "removed": report.actions.filter { $0.status == .removed }.count,
             "failed": report.actions.filter { $0.status == .failed }.count,
-            "removedBytes": removed.reduce(Int64(0)) { $0 + $1.bytes },
+            "removedBytes": report.removedBytes,
         ]
+        try appendHistory(summary)
+    }
+
+    static func appendHistory(_ summary: [String: Any]) throws {
         var line = try JSONSerialization.data(withJSONObject: summary, options: [.sortedKeys])
         line.append(0x0A)
-        if let h = FileHandle(forWritingAtPath: Paths.history.path) {
+        if let h = FileHandle(forWritingAtPath: historyURL.path) {
             h.seekToEndOfFile()
             h.write(line)
             h.closeFile()
         } else {
-            try line.write(to: Paths.history)
+            try line.write(to: historyURL)
         }
     }
 }
