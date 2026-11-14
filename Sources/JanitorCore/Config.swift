@@ -8,6 +8,8 @@ public struct Config: Codable, Equatable, Sendable {
     public var intervalHours = 6.0
     /// Below this much free space an automatic run starts without waiting for the interval.
     public var lowDiskGB = 20.0
+    /// The app scans again in the background once its last result is this old.
+    public var refreshMinutes = 60.0
     public var disabled: [Category] = []
     /// Searched for repos with worktrees and for worktrees whose repo is gone.
     public var worktreeSearchRoot = Paths.home.path

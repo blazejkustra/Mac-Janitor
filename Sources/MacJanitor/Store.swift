@@ -61,9 +61,11 @@ final class Store: ObservableObject {
     @Published private(set) var lastRun: Report?
     /// What a clean would remove: a dry run, or after a clean the items that failed.
     @Published private(set) var preview: Report?
-    /// `preview` is the one saved by an earlier launch, shown until a fresh one replaces it.
-    @Published private(set) var restored: Bool
     @Published private(set) var busy: Busy?
+    /// The preview running keeps the last one on screen until it finishes.
+    @Published private(set) var quietRefresh: Bool
+    /// The planned items are being checked again before a clean.
+    @Published private(set) var checkingItems = false
     @Published var problem: String?
     private var configProblem: String?
     @Published private(set) var loginStatus: SMAppService.Status
@@ -88,12 +90,17 @@ final class Store: ObservableObject {
     private var watchTimer: Timer?
     private var observers: [NSObjectProtocol] = []
     private var measuringPurge = false
+    /// When the planned items of `preview` were last checked again.
+    private var itemsCheckedAt: Date?
+    /// When the last preview ended without a report; the timer waits an interval to retry.
+    private var previewFailedAt: Date?
 
-    static let previewMaxAge: TimeInterval = 300
+    /// Past this age, a clean checks the planned items again before asking.
+    static let itemCheckAge: TimeInterval = 180
 
     /// Unless `live`, the state stays as given: no disk, CLI or timers.
     init(config: Config = Config(), freeBytes: Int64, totalBytes: Int64, lastRun: Report? = nil,
-         preview: Report? = nil, restored: Bool = false, busy: Busy? = nil, problem: String? = nil,
+         preview: Report? = nil, busy: Busy? = nil, quietRefresh: Bool = false, problem: String? = nil,
          loginStatus: SMAppService.Status = .notRegistered, agentStatus: SMAppService.Status = .notRegistered,
          fullDiskAccess: Bool = true, purgeBacklog: Int64 = 0, scan: ScanState? = nil, live: Bool = false) {
         self.config = config
@@ -102,8 +109,8 @@ final class Store: ObservableObject {
         self.lastRun = lastRun
         self.preview = preview
         self.previewedWith = preview == nil ? nil : config
-        self.restored = restored
         self.busy = busy
+        self.quietRefresh = quietRefresh
         self.problem = problem
         self.loginStatus = loginStatus
         self.agentStatus = agentStatus
@@ -131,7 +138,7 @@ final class Store: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.refresh()
-                if self.busy == nil, Janitor.isRunning() { self.watchScheduledRun() }
+                self.refreshIfDue(.timer)
             }
         }
         let center = NotificationCenter.default
@@ -174,6 +181,9 @@ final class Store: ObservableObject {
 
     /// A clean or preview has nothing to show for any category yet.
     var isFirstScan: Bool { preview == nil && busy == .previewing }
+
+    /// What the panel shows as going on: a quiet refresh shows as the result it will replace.
+    var visibleBusy: Busy? { busy == .previewing && quietRefresh ? nil : busy }
 
     func items(_ c: JanitorCore.Category) -> [Item] {
         guard let preview = shown, config.enabled(c) else { return [] }
@@ -230,6 +240,8 @@ final class Store: ObservableObject {
         return lastRun.startedAt > preview.startedAt
     }
 
+    private var previewOutdated: Bool { previewIsStale || previewPredatesRun }
+
     /// Scheduled runs happen: the background job is registered and not paused.
     var automatic: Bool { agentStatus.isOn && !config.paused }
 
@@ -251,6 +263,7 @@ final class Store: ObservableObject {
         guard live else { return }
         (freeBytes, totalBytes) = Self.diskSpace()
         lastRun = Report.load()
+        if previewPredatesRun { dropWhatLastRunRemoved() }
         reloadConfig()
         loginStatus = SMAppService.mainApp.status
         agentStatus = Background.status
@@ -300,15 +313,22 @@ final class Store: ObservableObject {
               lastRun.map({ $0.startedAt < saved.report.startedAt }) ?? true else { return }
         preview = saved.report
         previewedWith = saved.config
-        restored = true
     }
 
     /// Drops the preview, in memory and on disk, so the next one starts from scratch.
     private func forgetPreview() {
         preview = nil
         previewedWith = nil
-        restored = false
         SavedPreview.discard()
+    }
+
+    /// What a real run removed is gone; the rest of the preview stands until the next one.
+    private func dropWhatLastRunRemoved() {
+        guard let lastRun, var shown = preview else { return }
+        let removed = Set(lastRun.actions.filter { $0.status == .removed }.map(\.id))
+        guard shown.actions.contains(where: { removed.contains($0.id) }) else { return }
+        shown.actions.removeAll { removed.contains($0.id) }
+        preview = shown
     }
 
     /// Opening the panel with Option held rescans from scratch.
@@ -316,16 +336,31 @@ final class Store: ObservableObject {
         panelOpen = true
         refresh()
         guard busy == nil else { return }
-        if NSEvent.modifierFlags.contains(.option) { forgetPreview() }
-        if Janitor.isRunning() {
-            watchScheduledRun()
-        } else if restored || previewIsStale || previewPredatesRun
-                    || preview.map({ -$0.finishedAt.timeIntervalSinceNow > Self.previewMaxAge }) ?? true {
-            Task { await runPreview() }
+        if NSEvent.modifierFlags.contains(.option) {
+            forgetPreview()
+            return refreshIfDue(.forced)
         }
+        refreshIfDue(.panelOpened)
     }
 
-    /// Polls until another run releases the lock; what it removed makes the preview stale.
+    /// The refresh button: a full rescan, or showing the progress of the one running.
+    func refreshNow() {
+        if busy == .previewing { quietRefresh = false }
+        refreshIfDue(.forced)
+    }
+
+    private func refreshIfDue(_ trigger: RefreshPolicy.Trigger) {
+        guard live, busy == nil else { return }
+        if Janitor.isRunning() { return watchScheduledRun() }
+        if trigger == .timer, let failed = previewFailedAt, -failed.timeIntervalSinceNow < config.refreshMinutes * 60 { return }
+        let decision = RefreshPolicy.decide(trigger, resultAge: preview.map { -$0.finishedAt.timeIntervalSinceNow },
+                                            interval: config.refreshMinutes * 60, outdated: previewOutdated,
+                                            power: PowerSource.current)
+        guard decision != .none else { return }
+        Task { await runPreview(quiet: decision == .quiet) }
+    }
+
+    /// Polls until another run releases the lock, then refreshes what it changed.
     private func watchScheduledRun() {
         busy = .scheduled
         watchTimer?.invalidate()
@@ -334,17 +369,17 @@ final class Store: ObservableObject {
                 guard let self, !Janitor.isRunning() else { return }
                 timer.invalidate()
                 self.busy = nil
-                self.forgetPreview()
                 self.refresh()
-                if self.panelOpen { await self.runPreview() }
+                self.refreshIfDue(self.panelOpen ? .panelOpened : .timer)
             }
         }
     }
 
-    func runPreview() async {
+    func runPreview(quiet: Bool = false) async {
         guard live, busy == nil else { return }
         if Janitor.isRunning() { return watchScheduledRun() }
         busy = .previewing
+        quietRefresh = quiet
         previewID += 1
         let id = previewID
         let cfg = config
@@ -358,23 +393,64 @@ final class Store: ObservableObject {
         // A clean started meanwhile; this plan predates it.
         guard id == previewID else { return }
         busy = nil
+        quietRefresh = false
         scan = nil
         refresh()
         if Janitor.isRunning() { return watchScheduledRun() }
         problem = outcome.problem
+        previewFailedAt = outcome.report == nil ? Date() : nil
         if let report = outcome.report {
             preview = report
             previewedWith = cfg
-            restored = false
             try? SavedPreview(report: report, config: cfg).save()
             // Settings changed, or a real run came and went, while it ran.
-            if previewIsStale || previewPredatesRun, panelOpen { await runPreview() }
+            if previewOutdated { refreshIfDue(.changed) }
         }
     }
 
-    /// Can run while a preview refreshes, as the CLI acts only on ids it still plans, but
-    /// never from a saved preview.
-    var canClean: Bool { !restored && (busy == nil || busy == .previewing) && !planned.isEmpty }
+    /// Can run while a preview refreshes, as the CLI acts only on ids it still plans.
+    var canClean: Bool { (busy == nil || busy == .previewing) && !checkingItems && !planned.isEmpty }
+
+    /// The Clean button: an older preview's planned items are checked again first, so the
+    /// confirmation shows what is there now.
+    func requestClean() async {
+        guard canClean else { return }
+        if plannedItemsNeedCheck, !(await checkPlannedItems()) { return }
+        confirmingClean = canClean
+    }
+
+    private var plannedItemsNeedCheck: Bool {
+        guard live, let preview else { return false }
+        let checked = max(preview.finishedAt, itemsCheckedAt ?? .distantPast)
+        return -checked.timeIntervalSinceNow > Self.itemCheckAge
+    }
+
+    /// Whether the check finished; without it, nothing in use can be told apart.
+    private func checkPlannedItems() async -> Bool {
+        guard let base = preview else { return false }
+        let ids = Set(planned.map(\.id))
+        let actions = base.actions.filter { ids.contains($0.id) }
+        let cfg = config
+        checkingItems = true
+        defer { checkingItems = false }
+        let checked = await Task.detached(priority: .userInitiated) {
+            Result { try Revalidation.check(actions, cfg: cfg, guards: Guards.gather()) }
+        }.value
+        // A finished preview replaced the one checked, and is fresh itself.
+        guard let current = preview, current.startedAt == base.startedAt else { return true }
+        switch checked {
+        case .failure(let error):
+            problem = "\(error)"
+            return false
+        case .success(let result):
+            var updated = current
+            updated.actions = current.actions.filter { !ids.contains($0.id) } + result.actions
+            updated.skips += result.skips
+            preview = updated
+            itemsCheckedAt = Date()
+            return true
+        }
+    }
 
     func clean() async {
         let targets = planned.map { (id: $0.id, bytes: $0.bytes) }
@@ -382,6 +458,7 @@ final class Store: ObservableObject {
         previewID += 1
         confirmingClean = false
         scan = nil
+        quietRefresh = false
         busy = .cleaning
         problem = nil
         let outcome = await JanitorRunner.run(dryRun: false, only: targets)
@@ -389,9 +466,14 @@ final class Store: ObservableObject {
         refresh()
         if outcome.locked { return watchScheduledRun() }
         problem = outcome.problem
-        guard var report = outcome.report else { return }
-        // Removed items go and failures stay. Kept and guarded items were not part of
-        // the run, so they carry over from the preview.
+        if let report = outcome.report { showCleanResult(report) }
+        refreshIfDue(.changed)
+    }
+
+    /// Removed items go and failures stay. Kept and guarded items were not part of the
+    /// run, so they carry over from the preview.
+    private func showCleanResult(_ cleaned: Report) {
+        var report = cleaned
         let before = preview
         report.actions = report.actions.filter { $0.status == .failed }
             + (before?.actions.filter { config.isKept($0.target) } ?? [])
@@ -434,7 +516,7 @@ final class Store: ObservableObject {
 
     /// Applies config changes made in settings to the preview.
     func settingsClosed() {
-        if previewIsStale, panelOpen { Task { await runPreview() } }
+        if previewIsStale { refreshIfDue(.changed) }
     }
 
     func setEnabled(_ c: JanitorCore.Category, _ on: Bool) {
@@ -442,11 +524,12 @@ final class Store: ObservableObject {
             cfg.disabled.removeAll { $0 == c }
             if !on { cfg.disabled.append(c) }
         }
-        if on, previewIsStale { Task { await runPreview() } }
+        if on, previewIsStale { refreshIfDue(.changed) }
     }
 
     func pin(_ target: String) {
         update { $0.keep.append(target) }
+        refreshIfDue(.changed)
     }
 
     /// Removes every `keep` entry that protects `target`.
@@ -455,7 +538,7 @@ final class Store: ObservableObject {
             let entries = cfg.keepEntries(for: target)
             cfg.keep.removeAll { entries.contains($0) }
         }
-        if panelOpen, previewIsStale { Task { await runPreview() } }
+        if previewIsStale { refreshIfDue(.changed) }
     }
 
     func setLaunchAtLogin(_ on: Bool) {
