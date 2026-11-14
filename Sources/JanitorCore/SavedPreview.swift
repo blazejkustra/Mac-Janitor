@@ -1,7 +1,7 @@
 import Foundation
 
-/// The last finished preview, kept so the panel has results to show at launch. It is
-/// only ever displayed: a clean acts on a fresh preview.
+/// The last finished preview, kept so the panel has results to show at launch. A clean
+/// from it checks its items again first.
 public struct SavedPreview: Codable {
     public static let currentSchema = 1
     public static let maxAge: TimeInterval = 24 * 3600
@@ -61,6 +61,7 @@ extension Config {
         c.paused = false
         c.intervalHours = 0
         c.lowDiskGB = 0
+        c.refreshMinutes = 0
         c.keep = []
         c.disabled = []
         return c

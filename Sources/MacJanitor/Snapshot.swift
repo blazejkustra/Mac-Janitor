@@ -103,6 +103,13 @@ enum Snapshot {
                freeBytesAfter: 124 * gb, actions: actions, skips: skips, issues: issues)
     }
 
+    private static func finished(_ report: Report, hoursAgo hours: Double) -> Report {
+        var report = report
+        report.startedAt = ago(hours + 0.05)
+        report.finishedAt = ago(hours)
+        return report
+    }
+
     private static func planned(_ c: JanitorCore.Category, _ target: String, _ bytes: Int64,
                                 _ reason: String = "untouched for 4.2 days") -> Action {
         Action(category: c, target: target, reason: reason, bytes: bytes, status: .planned)
@@ -237,8 +244,13 @@ enum Snapshot {
             ("k-onboarding-schedule", { onboarding(.schedule, normal) }),
             ("l-onboarding-done", { onboarding(.done, normal) }),
             ("m-refreshing", {
-                panel(Store(freeBytes: 91 * gb, totalBytes: total, lastRun: deferredClean, preview: mixedPreview,
-                            restored: true, busy: .previewing, agentStatus: .enabled, scan: ScanState()))
+                panel(Store(freeBytes: 91 * gb, totalBytes: total, lastRun: deferredClean,
+                            preview: finished(mixedPreview, hoursAgo: 1.2), busy: .previewing, quietRefresh: true,
+                            agentStatus: .enabled, scan: partialScan))
+            }),
+            ("o-updated", {
+                panel(Store(freeBytes: 124 * gb, totalBytes: total, lastRun: lastRun,
+                            preview: finished(mixedPreview, hoursAgo: 0.2), agentStatus: .enabled))
             }),
             ("n-purging", {
                 panel(Store(freeBytes: 39 * gb, totalBytes: total, lastRun: deferredClean, preview: mixedPreview,

@@ -85,6 +85,20 @@ private struct GeneralPage: View {
                 BigToggle(isOn: Binding(get: { store.loginStatus.isOn }, set: { store.setLaunchAtLogin($0) }))
             }
         }
+        SectionHeader(title: "Scanning")
+        Card {
+            SettingRow(title: "Scan again after", detail: "Older results are refreshed in the background, except on battery.") {
+                Picker("Scan again after", selection: store.binding(\.refreshMinutes)) {
+                    ForEach(RefreshChoice.all, id: \.minutes) { Text($0.title).tag($0.minutes) }
+                    if !RefreshChoice.all.contains(where: { $0.minutes == store.config.refreshMinutes }) {
+                        Text("\(Format.number(store.config.refreshMinutes)) min").tag(store.config.refreshMinutes)
+                    }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .pointingCursor()
+            }
+        }
         SectionHeader(title: "Help")
         Card {
             SettingRow(title: "Setup guide", detail: "Walk through permissions and the schedule again.") {
@@ -422,4 +436,15 @@ extension Store {
     func binding<T>(_ key: WritableKeyPath<Config, T>) -> Binding<T> {
         Binding(get: { self.config[keyPath: key] }, set: { value in self.update { $0[keyPath: key] = value } })
     }
+}
+
+struct RefreshChoice {
+    let minutes: Double
+    let title: String
+
+    static let all = [
+        RefreshChoice(minutes: 15, title: "15 min"),
+        RefreshChoice(minutes: 60, title: "1 hour"),
+        RefreshChoice(minutes: 360, title: "6 hours"),
+    ]
 }

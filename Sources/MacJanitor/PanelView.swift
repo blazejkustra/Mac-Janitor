@@ -39,8 +39,6 @@ private struct OverviewView: View {
                 ProblemBanner(text: problem) { store.problem = nil }
             }
             CategoryGrid()
-                .opacity(store.restored ? 0.5 : 1)
-                .animation(.easeOut(duration: 0.2), value: store.restored)
             CleanArea()
             FooterView().padding(.horizontal, 2).padding(.top, 2)
         }
@@ -63,7 +61,8 @@ private struct HeroCard: View {
             }
             .frame(width: 70, height: 70)
             VStack(alignment: .leading, spacing: 3) {
-                headline
+                VStack(alignment: .leading, spacing: 3) { headline }
+                    .padding(.trailing, 48)
                 Text("\(Format.bytes(store.freeBytes)) free of \(Format.bytes(store.totalBytes))"
                      + (store.isLowDisk ? ", running low" : ""))
                     .font(.system(size: 11.5))
@@ -74,8 +73,10 @@ private struct HeroCard: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if store.visibleBusy == nil, let updated = store.preview?.finishedAt {
+                    UpdatedLine(date: updated, refreshing: store.busy == .previewing)
+                }
             }
-            .padding(.trailing, 22)
             Spacer(minLength: 0)
         }
         .padding(14)
@@ -83,12 +84,18 @@ private struct HeroCard: View {
         .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
         .overlay(alignment: .topTrailing) {
-            IconButton(symbol: "gearshape", label: "Settings") { Windows.shared.showSettings() }
-                .padding(8)
+            HStack(spacing: 2) {
+                IconButton(symbol: "arrow.clockwise", label: "Scan again", disabled: !canRefresh) { store.refreshNow() }
+                IconButton(symbol: "gearshape", label: "Settings") { Windows.shared.showSettings() }
+            }
+            .padding(8)
         }
     }
 
-    private var scanning: Bool { store.busy == .previewing }
+    private var scanning: Bool { store.visibleBusy == .previewing }
+
+    /// A quiet refresh can still be brought into view.
+    private var canRefresh: Bool { store.visibleBusy == nil && !store.checkingItems }
 
     private var ringFraction: Double {
         scanning ? max(store.scanProgress, 0.04) : store.usedFraction
@@ -120,11 +127,9 @@ private struct HeroCard: View {
 
     @ViewBuilder
     private var headline: some View {
-        switch store.busy {
+        switch store.visibleBusy {
         case .previewing:
-            if store.restored {
-                BigNumber(text: "Refreshing…", caption: "")
-            } else if store.preview != nil {
+            if store.preview != nil {
                 BigNumber(text: Format.bytes(store.plannedBytes), caption: "refreshing")
             } else if store.plannedBytes > 0 {
                 BigNumber(text: Format.bytes(store.plannedBytes), caption: "found so far")
@@ -155,6 +160,29 @@ private struct HeroCard: View {
                 BigNumber(text: "All clean", caption: "")
             }
         }
+    }
+}
+
+/// How old the numbers on screen are, and whether newer ones are on the way.
+private struct UpdatedLine: View {
+    let date: Date
+    let refreshing: Bool
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if refreshing {
+                ProgressView().controlSize(.mini).scaleEffect(0.8).frame(width: 10, height: 10)
+            }
+            Text(refreshing ? "\(updated), refreshing" : updated)
+                .lineLimit(1)
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(.secondary)
+    }
+
+    private var updated: String {
+        let ago = Format.ago(date)
+        return ago == "now" ? "Updated just now" : "Updated \(ago)"
     }
 }
 
@@ -339,11 +367,14 @@ private struct CleanButton: View {
 
     var body: some View {
         let total = store.plannedBytes
-        Button { store.confirmingClean = true } label: {
+        Button { Task { await store.requestClean() } } label: {
             HStack(spacing: 6) {
                 if store.busy == .cleaning {
                     ProgressView().controlSize(.small).tint(.white)
                     Text("Cleaning")
+                } else if store.checkingItems {
+                    ProgressView().controlSize(.small).tint(.white)
+                    Text("Checking items")
                 } else {
                     Image(systemName: "trash")
                     Text(title(total)).monospacedDigit()
@@ -351,7 +382,7 @@ private struct CleanButton: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(PillButtonStyle(active: store.busy == .cleaning))
+        .buttonStyle(PillButtonStyle(active: store.busy == .cleaning || store.checkingItems))
         .disabled(!store.canClean)
         .pointingCursor(enabled: store.canClean)
     }
@@ -458,6 +489,7 @@ struct IconButton: View {
     let symbol: String
     let label: String
     var tint: Color?
+    var disabled = false
     let action: () -> Void
 
     var body: some View {
@@ -469,9 +501,10 @@ struct IconButton: View {
         }
         .buttonStyle(.borderless)
         .foregroundStyle(tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.secondary))
+        .disabled(disabled)
         .help(label)
         .accessibilityLabel(label)
-        .pointingCursor()
+        .pointingCursor(enabled: !disabled)
     }
 }
 
