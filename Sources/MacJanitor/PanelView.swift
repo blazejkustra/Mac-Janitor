@@ -291,12 +291,15 @@ private struct CategoryTile: View {
                 }
                 Spacer(minLength: 8)
                 sizeText(state)
-                Text(category.title)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(height: 21, alignment: .leading)
+                ZStack(alignment: .topLeading) {
+                    Text(verbatim: "X\nX").hidden()
+                    Text(category.title)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                .font(.system(size: 11, weight: .medium))
             }
             .padding(11)
             .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
@@ -338,13 +341,11 @@ private struct CategoryTile: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
-                .frame(height: 21)
         case .checking:
             HStack(spacing: 5) {
                 ProgressView().controlSize(.mini)
                 Text("Checking").font(.system(size: 12, weight: .medium)).foregroundStyle(.tertiary)
             }
-            .frame(height: 21)
         }
     }
 }
