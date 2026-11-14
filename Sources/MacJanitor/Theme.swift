@@ -32,6 +32,14 @@ enum Palette {
     }
 }
 
+/// The only four text sizes: page titles and the panel headline, section titles and values, body, labels.
+enum TextSize {
+    static let title: CGFloat = 26
+    static let heading: CGFloat = 17
+    static let body: CGFloat = 13
+    static let label: CGFloat = 11
+}
+
 /// A neutral rounded square with a monochrome symbol: how every section is marked.
 struct IconTile: View {
     let symbol: String
@@ -43,7 +51,7 @@ struct IconTile: View {
             .fill(Palette.well)
             .overlay(
                 Image(systemName: symbol)
-                    .font(.system(size: size * 0.46, weight: .medium))
+                    .font(.system(size: size * 0.46))
                     .foregroundStyle(symbolStyle)
             )
             .frame(width: size, height: size)
@@ -52,27 +60,39 @@ struct IconTile: View {
 
 /// Grouped rows on a lighter rounded surface, divided by hairlines.
 struct Card<Content: View>: View {
-    var radius: CGFloat = 12
+    /// Where the hairlines start, matching the rows' own horizontal padding.
+    var rowInset: CGFloat = 16
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            _VariadicView.Tree(DividedLayout()) { content }
+            _VariadicView.Tree(DividedLayout(inset: rowInset)) { content }
         }
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Palette.stroke))
+        .surface()
     }
 }
 
 private struct DividedLayout: _VariadicView_MultiViewRoot {
+    let inset: CGFloat
+
     func body(children: _VariadicView.Children) -> some View {
         let last = children.last?.id
         ForEach(children) { child in
             child
             if child.id != last {
-                Rectangle().fill(Palette.divider).frame(height: 1).padding(.leading, 14)
+                Rectangle().fill(Palette.divider).frame(height: 1).padding(.leading, inset)
             }
         }
+    }
+}
+
+extension View {
+    /// The one card look: a neutral fill, a hairline border, the shared radius, content clipped to it.
+    func surface(_ fill: Color = Palette.card) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous)
+        return background(fill, in: shape)
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(Palette.stroke))
     }
 }
 
@@ -86,11 +106,11 @@ struct SettingRow<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             if let symbol { IconTile(symbol: symbol, size: 28) }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13, weight: .semibold))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.system(size: TextSize.body, weight: .semibold))
                 if let detail {
                     Text(detail)
-                        .font(.system(size: 11.5))
+                        .font(.system(size: TextSize.label))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -98,8 +118,8 @@ struct SettingRow<Trailing: View>: View {
             Spacer(minLength: 12)
             trailing
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
 
@@ -110,19 +130,19 @@ struct SectionHeader: View {
 
     var body: some View {
         HStack {
-            Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+            Text(title).font(.system(size: TextSize.body, weight: .semibold)).foregroundStyle(.secondary)
             Spacer()
             if let action {
                 Button(action.title, action: action.run)
                     .buttonStyle(.plain)
-                    .font(.system(size: 12))
+                    .font(.system(size: TextSize.body))
                     .foregroundStyle(.secondary)
                     .pointingCursor()
             }
         }
         .padding(.horizontal, 4)
-        .padding(.top, 18)
-        .padding(.bottom, 6)
+        .padding(.top, 24)
+        .padding(.bottom, 8)
     }
 }
 
@@ -131,8 +151,7 @@ struct PageTitle: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 26, weight: .bold))
-            .padding(.bottom, 2)
+            .font(.system(size: TextSize.title, weight: .semibold))
     }
 }
 
@@ -142,11 +161,11 @@ struct Footnote: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11.5))
+            .font(.system(size: TextSize.label))
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 4)
-            .padding(.top, 6)
+            .padding(.top, 8)
     }
 }
 
@@ -156,12 +175,12 @@ struct StatusPill: View {
     let good: Bool
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             Circle().fill(good ? Palette.accent : Palette.warning).frame(width: 6, height: 6)
-            Text(text).font(.system(size: 11, weight: .medium))
+            Text(text).font(.system(size: TextSize.label, weight: .semibold))
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 3)
+        .padding(.vertical, 4)
         .background(Palette.well, in: Capsule())
     }
 }
@@ -215,7 +234,7 @@ struct PillButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let lit = isEnabled || active
         configuration.label
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: TextSize.body, weight: .semibold))
             .foregroundStyle(lit ? AnyShapeStyle(.white) : AnyShapeStyle(.tertiary))
             .padding(.horizontal, 16)
             .frame(height: 36)
@@ -231,9 +250,9 @@ struct PillButtonStyle: ButtonStyle {
 struct SoftButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .medium))
+            .font(.system(size: TextSize.body))
             .padding(.horizontal, 12)
-            .frame(height: 26)
+            .frame(height: 28)
             .background(Palette.well, in: Capsule())
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Capsule())
@@ -264,14 +283,14 @@ struct SidebarItem: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 IconTile(symbol: done ? "checkmark" : symbol, size: 24,
                          symbolStyle: done ? Palette.accent : selected ? .primary : Palette.icon)
-                Text(title).font(.system(size: 13, weight: selected ? .semibold : .regular))
+                Text(title).font(.system(size: TextSize.body, weight: selected ? .semibold : .regular))
                 Spacer()
             }
             .padding(.horizontal, 8)
-            .frame(height: 34)
+            .frame(height: 32)
             .background(selected ? Palette.selection : hovering ? Palette.selection.opacity(0.5) : .clear,
                         in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .contentShape(Rectangle())
@@ -287,7 +306,7 @@ struct AppSignature: View {
     var body: some View {
         HStack(spacing: 8) {
             AppMark(size: 22)
-            Text("Mac Janitor").font(.system(size: 13, weight: .semibold))
+            Text("Mac Janitor").font(.system(size: TextSize.body, weight: .semibold))
         }
     }
 }
@@ -302,7 +321,7 @@ struct AppMark: View {
         if let icon = Self.icon {
             Image(nsImage: icon).resizable().frame(width: size, height: size)
         } else {
-            IconTile(symbol: "trash.fill", size: size, symbolStyle: Palette.accent)
+            IconTile(symbol: "trash", size: size, symbolStyle: Palette.accent)
         }
     }
 }
@@ -315,11 +334,11 @@ struct SidebarWindowLayout<Sidebar: View, Page: View>: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 sidebar
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 52)
+            .padding(.horizontal, 12)
+            .padding(.top, 48)
             .padding(.bottom, 16)
             .frame(width: sidebarWidth, alignment: .leading)
             .frame(maxHeight: .infinity, alignment: .top)

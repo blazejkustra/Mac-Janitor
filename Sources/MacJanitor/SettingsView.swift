@@ -19,11 +19,11 @@ enum SettingsPage: String, CaseIterable {
 
     var symbol: String {
         switch self {
-        case .general: return "gearshape.fill"
-        case .schedule: return "clock.fill"
+        case .general: return "gearshape"
+        case .schedule: return "clock"
         case .categories: return "checklist"
-        case .kept: return "pin.fill"
-        case .permissions: return "lock.shield.fill"
+        case .kept: return "pin"
+        case .permissions: return "lock.shield"
         case .about: return "info"
         }
     }
@@ -46,13 +46,13 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     PageTitle(text: page.title)
                     if let problem = store.problem {
-                        ProblemBanner(text: problem) { store.problem = nil }.padding(.top, 10)
+                        ProblemBanner(text: problem) { store.problem = nil }.padding(.top, 12)
                     }
                     content
                 }
-                .padding(.horizontal, 28)
-                .padding(.top, 34)
-                .padding(.bottom, 28)
+                .padding(.horizontal, 32)
+                .padding(.top, 40)
+                .padding(.bottom, 32)
             }
         }
         .frame(width: 760, height: 560)
@@ -163,7 +163,7 @@ private struct CategoriesPage: View {
     var body: some View {
         SectionHeader(title: "Categories", action: ("Reset to defaults", resetThresholds))
         ForEach(JanitorCore.Category.allCases, id: \.self) { category in
-            CategoryCard(category: category).padding(.bottom, 10)
+            CategoryCard(category: category).padding(.bottom, 12)
         }
         Footnote(text: "Turned-off categories are not checked or cleaned. A manual clean always shows everything first.")
     }
@@ -205,15 +205,15 @@ private struct KeptPage: View {
     var body: some View {
         SectionHeader(title: "Never removed",
                       action: store.config.keep.isEmpty ? nil : ("Clear all", { store.update { $0.keep = [] } }))
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], alignment: .leading, spacing: 10) {
-            ForEach(store.config.keep, id: \.self) { KeptTile(target: $0) }
-            AddTile { chooseFolder() }
+        Card {
+            ForEach(store.config.keep, id: \.self) { KeptRow(target: $0) }
+            SettingRow(title: store.config.keep.isEmpty ? "Nothing kept yet" : "Keep something else",
+                       detail: "Pin an item in the menu, or choose a folder or file here.",
+                       symbol: "plus") {
+                Button("Choose…") { chooseFolder() }.buttonStyle(SoftButtonStyle()).pointingCursor()
+            }
         }
-        .padding(10)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.stroke))
-        Footnote(text: "Press + to keep a folder or file, or use the pin next to an item in the menu. "
-                 + "Everything inside a kept folder is kept too. Hover a tile to stop keeping it.")
+        Footnote(text: "Everything inside a kept folder is kept too.")
     }
 
     private func chooseFolder() {
@@ -228,64 +228,22 @@ private struct KeptPage: View {
     }
 }
 
-private struct KeptTile: View {
+private struct KeptRow: View {
     @EnvironmentObject private var store: Store
     let target: String
-    @State private var hovering = false
 
     var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: symbol)
-                .font(.system(size: 22, weight: .light))
-                .foregroundStyle(Palette.icon)
-                .frame(height: 30)
-            Text((target as NSString).lastPathComponent)
-                .font(.system(size: 11, weight: .medium))
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .truncationMode(.middle)
+        SettingRow(title: (target as NSString).lastPathComponent,
+                   detail: target.hasPrefix("/") ? Format.path(target) : nil,
+
+                   symbol: symbol) {
+            Button("Stop keeping") { store.unpin(target) }.buttonStyle(SoftButtonStyle()).pointingCursor()
         }
-        .padding(8)
-        .frame(width: 92, height: 92)
-        .background(Palette.selection.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(alignment: .topTrailing) {
-            if hovering {
-                Button { store.unpin(target) } label: {
-                    Image(systemName: "xmark.circle.fill").font(.system(size: 16)).foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .padding(4)
-                .accessibilityLabel("Stop keeping")
-                .pointingCursor()
-            }
-        }
-        .help(Format.path(target))
-        .onHover { hovering = $0 }
     }
 
     private var symbol: String {
-        guard target.hasPrefix("/") else { return "shippingbox.fill" }
-        return FS.isDirectory(target) ? "folder.fill" : "doc.fill"
-    }
-}
-
-private struct AddTile: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "plus")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 92, height: 92)
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                    .foregroundStyle(.tertiary))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Keep a folder or file")
-        .pointingCursor()
+        guard target.hasPrefix("/") else { return "shippingbox" }
+        return FS.isDirectory(target) ? "folder" : "doc"
     }
 }
 
@@ -298,7 +256,7 @@ private struct PermissionsPage: View {
             SettingRow(title: "Full Disk Access",
                        detail: store.fullDiskAccess ? "Desktop, Documents, Downloads and the Trash can be checked."
                            : "Desktop, Documents, Downloads and the Trash are skipped until you allow it.",
-                       symbol: "lock.shield.fill") {
+                       symbol: "lock.shield") {
                 HStack(spacing: 8) {
                     StatusPill(text: store.fullDiskAccess ? "Granted" : "Off", good: store.fullDiskAccess)
                     if !store.fullDiskAccess {
@@ -307,7 +265,7 @@ private struct PermissionsPage: View {
                     }
                 }
             }
-            SettingRow(title: "Background cleaning", detail: backgroundDetail, symbol: "clock.fill") {
+            SettingRow(title: "Background cleaning", detail: backgroundDetail, symbol: "clock") {
                 HStack(spacing: 8) {
                     StatusPill(text: backgroundStatus, good: store.agentStatus == .enabled)
                     if store.agentStatus == .requiresApproval {
@@ -339,16 +297,16 @@ private struct AboutPage: View {
     @ObservedObject private var updates = Updates.shared
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 16) {
             AppMark(size: 56)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Mac Janitor").font(.system(size: 17, weight: .semibold))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Mac Janitor").font(.system(size: TextSize.heading, weight: .semibold))
                 Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
-                    .font(.system(size: 12))
+                    .font(.system(size: TextSize.body))
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.top, 14)
+        .padding(.top, 16)
         SectionHeader(title: "Updates")
         Card {
             SettingRow(title: "Check automatically", detail: "Looks for a new version once a day and asks before installing.") {
@@ -393,9 +351,10 @@ private struct ValueStepper: View {
     var unit = "days"
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Text("\(Format.number(value.wrappedValue)) \(value.wrappedValue == 1 && unit == "days" ? "day" : unit)")
-                .font(.system(size: 12.5, weight: .medium))
+                .font(.system(size: TextSize.body))
+
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
             Stepper("", value: value, in: range, step: step)

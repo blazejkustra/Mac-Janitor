@@ -32,7 +32,7 @@ private struct OverviewView: View {
     @EnvironmentObject private var store: Store
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HeroCard()
             UpdateBanner()
             if !store.fullDiskAccess { AccessBanner() }
@@ -41,7 +41,7 @@ private struct OverviewView: View {
             }
             CategoryGrid()
             CleanArea()
-            FooterView().padding(.horizontal, 2).padding(.top, 2)
+            FooterView().padding(.horizontal, 4).padding(.top, 4)
         }
         .padding(Metrics.inset)
     }
@@ -52,7 +52,7 @@ private struct HeroCard: View {
     @EnvironmentObject private var store: Store
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             Group {
                 if scanning && store.scanProgress == 0 {
                     SpinningRing { ringCenter }
@@ -61,16 +61,16 @@ private struct HeroCard: View {
                 }
             }
             .frame(width: 70, height: 70)
-            VStack(alignment: .leading, spacing: 3) {
-                VStack(alignment: .leading, spacing: 3) { headline }
+            VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) { headline }
                     .padding(.trailing, 48)
                 Text("\(Format.bytes(store.freeBytes)) free of \(Format.bytes(store.totalBytes))"
                      + (store.isLowDisk ? ", running low" : ""))
-                    .font(.system(size: 11.5))
+                    .font(.system(size: TextSize.label))
                     .foregroundStyle(store.isLowDisk ? AnyShapeStyle(Palette.critical) : AnyShapeStyle(.secondary))
                 if store.purgeBacklog > 0 {
                     Text("\(Format.bytes(store.purgeBacklog)) from earlier cleans still being deleted")
-                        .font(.system(size: 11))
+                        .font(.system(size: TextSize.label))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -80,12 +80,11 @@ private struct HeroCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
+        .surface()
         .overlay(alignment: .topTrailing) {
-            HStack(spacing: 2) {
+            HStack(spacing: 4) {
                 IconButton(symbol: "arrow.clockwise", label: "Scan again", disabled: !canRefresh) { store.refreshNow() }
                 IconButton(symbol: "gearshape", label: "Settings") { Windows.shared.showSettings() }
             }
@@ -111,17 +110,17 @@ private struct HeroCard: View {
     @ViewBuilder
     private var ringCenter: some View {
         if scanning && store.scanProgress == 0 {
-            Image(systemName: "magnifyingglass").font(.system(size: 18, weight: .semibold)).foregroundStyle(.secondary)
+            Image(systemName: "magnifyingglass").font(.system(size: TextSize.heading)).foregroundStyle(.secondary)
         } else if scanning {
             Text("\(Int(store.scanProgress * 100))%")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: TextSize.body, weight: .semibold))
                 .monospacedDigit()
         } else {
             VStack(spacing: 0) {
                 Text("\(Int(store.usedFraction * 100))%")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: TextSize.body, weight: .semibold))
                     .monospacedDigit()
-                Text("used").font(.system(size: 9)).foregroundStyle(.secondary)
+                Text("used").font(.system(size: TextSize.label)).foregroundStyle(.secondary)
             }
         }
     }
@@ -138,12 +137,12 @@ private struct HeroCard: View {
                 BigNumber(text: "Scanning", caption: "")
             }
             Text(store.scan?.step ?? "Starting")
-                .font(.system(size: 11.5))
+                .font(.system(size: TextSize.label))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             if let folder = store.scan?.folder {
                 Text(Format.path(folder))
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: TextSize.label, design: .monospaced))
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -170,14 +169,14 @@ private struct UpdatedLine: View {
     let refreshing: Bool
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 4) {
             if refreshing {
                 ProgressView().controlSize(.mini).scaleEffect(0.8).frame(width: 10, height: 10)
             }
             Text(refreshing ? "\(updated), refreshing" : updated)
                 .lineLimit(1)
         }
-        .font(.system(size: 11))
+        .font(.system(size: TextSize.label))
         .foregroundStyle(.secondary)
     }
 
@@ -192,15 +191,15 @@ private struct BigNumber: View {
     let caption: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(text)
-                .font(.system(size: 26, weight: .semibold))
+                .font(.system(size: TextSize.title, weight: .semibold))
                 .tracking(-0.4)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(caption)
-                .font(.system(size: 12))
+                .font(.system(size: TextSize.label))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -209,23 +208,22 @@ private struct BigNumber: View {
 
 private struct AccessBanner: View {
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             IconTile(symbol: "lock.shield", size: 28, symbolStyle: Palette.warning)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Full Disk Access is off").font(.system(size: 12, weight: .semibold))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Full Disk Access is off").font(.system(size: TextSize.body, weight: .semibold))
                 Text("Desktop, Documents, Downloads and the Trash are skipped.")
-                    .font(.system(size: 11))
+                    .font(.system(size: TextSize.label))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 6)
-            Button("Fix") { Windows.shared.showOnboarding(step: .access) }
+            Spacer(minLength: 8)
+            Button("Allow") { Windows.shared.showOnboarding(step: .access) }
                 .buttonStyle(SoftButtonStyle())
                 .pointingCursor()
         }
-        .padding(10)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
+        .padding(12)
+        .surface()
     }
 }
 
@@ -240,8 +238,8 @@ struct ProblemBanner: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: "xmark.octagon.fill")
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "xmark.octagon.fill").foregroundStyle(Palette.critical)
             Text(Self.shorten(text))
                 .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
@@ -249,11 +247,12 @@ struct ProblemBanner: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             IconButton(symbol: "xmark", label: "Dismiss", action: dismiss)
         }
-        .font(.caption)
-        .foregroundStyle(Palette.critical)
-        .padding(.horizontal, 10)
+        .font(.system(size: TextSize.label))
+        .padding(.leading, 12)
+        .padding(.trailing, 8)
         .padding(.vertical, 8)
-        .background(Palette.critical.opacity(0.1), in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .surface()
+
     }
 }
 
@@ -286,7 +285,7 @@ private struct CategoryTile: View {
                         .frame(height: 18)
                     Spacer()
                     if !issues.isEmpty {
-                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 10)).foregroundStyle(Palette.warning)
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: TextSize.label)).foregroundStyle(Palette.warning)
                     }
                 }
                 Spacer(minLength: 8)
@@ -299,12 +298,11 @@ private struct CategoryTile: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: TextSize.label))
             }
-            .padding(11)
+            .padding(12)
             .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-            .background(hovering ? Palette.cardHover : Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
+            .surface(hovering ? Palette.cardHover : Palette.card)
             .animation(.easeOut(duration: 0.12), value: hovering)
             .contentShape(Rectangle())
         }
@@ -329,22 +327,22 @@ private struct CategoryTile: View {
         switch state {
         case .found(let bytes):
             Text(Format.bytes(bytes))
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: TextSize.heading, weight: .semibold))
                 .monospacedDigit()
         case .nothing:
             Text("None")
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: TextSize.heading, weight: .semibold))
                 .foregroundStyle(.tertiary)
         case .unchecked:
             Text("Couldn't check")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: TextSize.body))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         case .checking:
-            HStack(spacing: 5) {
+            HStack(spacing: 4) {
                 ProgressView().controlSize(.mini)
-                Text("Checking").font(.system(size: 12, weight: .medium)).foregroundStyle(.tertiary)
+                Text("Checking").font(.system(size: TextSize.body)).foregroundStyle(.tertiary)
             }
         }
     }
@@ -370,7 +368,7 @@ private struct CleanButton: View {
     var body: some View {
         let total = store.plannedBytes
         Button { Task { await store.requestClean() } } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 if store.busy == .cleaning {
                     ProgressView().controlSize(.small).tint(.white)
                     Text("Cleaning")
@@ -402,9 +400,9 @@ private struct CleanConfirmation: View {
         let groups = store.enabledCategories
             .map { ($0, store.items($0).filter { $0.kind == .planned }) }
             .filter { !$0.1.isEmpty }
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             BigNumber(text: Format.bytes(store.plannedBytes), caption: "in \(store.planned.count) items")
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 ForEach(groups, id: \.0) { category, items in
                     HStack(spacing: 8) {
                         Image(systemName: category.symbol)
@@ -414,11 +412,11 @@ private struct CleanConfirmation: View {
                         Spacer()
                         Text(Format.bytes(items.reduce(0) { $0 + $1.bytes })).monospacedDigit().foregroundStyle(.secondary)
                     }
-                    .font(.system(size: 12))
+                    .font(.system(size: TextSize.body))
                 }
             }
             Text("This cannot be undone, except large files, which go to the Trash. Uncommitted work in worktrees is saved first.")
-                .font(.system(size: 11))
+                .font(.system(size: TextSize.label))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
@@ -433,9 +431,9 @@ private struct CleanConfirmation: View {
                     .pointingCursor()
             }
         }
-        .padding(14)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
+        .padding(12)
+        .surface()
+
     }
 }
 
@@ -445,8 +443,8 @@ private struct FooterView: View {
     @EnvironmentObject private var store: Store
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
                 Circle().fill(store.automatic ? Palette.accent : Palette.icon.opacity(0.5)).frame(width: 6, height: 6)
                 Text(scheduleText).lineLimit(1)
                 Spacer()
@@ -454,9 +452,9 @@ private struct FooterView: View {
                     .buttonStyle(SoftButtonStyle())
                     .pointingCursor()
             }
-            .font(.system(size: 11.5))
+            .font(.system(size: TextSize.body))
             Text(lastRunText)
-                .font(.system(size: 11))
+                .font(.system(size: TextSize.label))
                 .foregroundStyle(.secondary)
         }
     }
@@ -497,8 +495,9 @@ struct IconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13))
-                .frame(width: 22, height: 22)
+                .font(.system(size: TextSize.body))
+                .frame(width: 24, height: 24)
+
                 .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
