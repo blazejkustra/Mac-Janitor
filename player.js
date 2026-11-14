@@ -14,7 +14,7 @@ async function videoExists() {
   }
 }
 
-function showVideo() {
+function open() {
   const video = document.createElement('video');
   video.src = VIDEO;
   video.poster = POSTER;
@@ -22,24 +22,21 @@ function showVideo() {
   video.autoplay = true;
   video.playsInline = true;
   frame.replaceChildren(video);
-}
-
-function showComingSoon() {
-  frame.replaceChildren(document.getElementById('soon').content.cloneNode(true));
-}
-
-async function open() {
-  frame.replaceChildren();
   player.showModal();
-  if (await videoExists()) {
-    showVideo();
-  } else {
-    showComingSoon();
-  }
 }
 
 function close() {
   player.close();
+}
+
+async function offerVideo() {
+  if (!(await videoExists())) {
+    return;
+  }
+  watch.hidden = false;
+  if (location.hash === '#video') {
+    open();
+  }
 }
 
 watch.addEventListener('click', open);
@@ -51,6 +48,4 @@ player.addEventListener('click', event => {
 });
 player.addEventListener('close', () => frame.replaceChildren());
 
-if (location.hash === '#video') {
-  open();
-}
+offerVideo();
