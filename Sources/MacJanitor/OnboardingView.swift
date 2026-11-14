@@ -20,9 +20,9 @@ final class OnboardingModel: ObservableObject {
 
         var symbol: String {
             switch self {
-            case .welcome: return "hand.wave.fill"
-            case .access: return "lock.shield.fill"
-            case .schedule: return "clock.fill"
+            case .welcome: return "hand.wave"
+            case .access: return "lock.shield"
+            case .schedule: return "clock"
             case .done: return "flag.checkered"
             }
         }
@@ -140,49 +140,52 @@ private struct StepHeading: View {
         VStack(alignment: .leading, spacing: 8) {
             PageTitle(text: title)
             Text(lede)
-                .font(.system(size: 14))
+                .font(.system(size: TextSize.body))
                 .foregroundStyle(.secondary)
-                .lineSpacing(2)
+                .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.bottom, 6)
+        .padding(.bottom, 8)
     }
 }
 
 private struct WelcomeStep: View {
+    private let categories = JanitorCore.Category.allCases
+
     var body: some View {
+
         StepHeading(title: "Free the space your tools leave behind",
                     lede: "Mac Janitor finds leftovers that can be rebuilt or downloaded again, shows you every one, "
                         + "and removes only what you approve.")
         SectionHeader(title: "What it cleans")
-        HStack(spacing: 10) {
-            ForEach([JanitorCore.Category.worktree, .nodeModules, .build, .cache, .dockerImage, .trash], id: \.self) { c in
-                VStack(spacing: 8) {
-                    IconTile(symbol: c.symbol, size: 34)
-                    Text(c.title)
-                        .font(.system(size: 11, weight: .medium))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
+            ForEach(Array(stride(from: 0, to: categories.count, by: 3)), id: \.self) { start in
+                GridRow {
+                    ForEach(categories[start..<min(start + 3, categories.count)], id: \.self) { c in
+                        HStack(spacing: 8) {
+                            Image(systemName: c.symbol).foregroundStyle(Palette.icon).frame(width: 20)
+                            Text(c.title).fixedSize()
+                        }
+                    }
                 }
-                .padding(.horizontal, 6)
-                .frame(maxWidth: .infinity, minHeight: 92)
-                .padding(.vertical, 10)
-                .background(Palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Palette.stroke))
             }
         }
+        .font(.system(size: TextSize.body))
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .surface()
+
         SectionHeader(title: "What it never touches")
         Card {
             SettingRow(title: "Anything in use or kept",
                        detail: "Files open in a running app, and anything you pin.",
-                       symbol: "hand.raised.fill") { EmptyView() }
+                       symbol: "hand.raised") { EmptyView() }
             SettingRow(title: "Your work",
                        detail: "Unpushed commits stay. Uncommitted changes are saved to a patch first.",
                        symbol: "arrow.triangle.branch") { EmptyView() }
             SettingRow(title: "Nothing happens on its own",
                        detail: "Automatic cleaning stays off until you turn it on.",
-                       symbol: "pause.fill") { EmptyView() }
+                       symbol: "pause.circle") { EmptyView() }
         }
     }
 }
@@ -199,11 +202,11 @@ private struct AccessStep: View {
             SettingRow(title: "Full Disk Access",
                        detail: store.fullDiskAccess ? "Granted. Everything can be checked."
                            : "Not granted yet. This updates by itself.",
-                       symbol: "lock.shield.fill") {
+                       symbol: "lock.shield") {
                 StatusPill(text: store.fullDiskAccess ? "Granted" : "Waiting", good: store.fullDiskAccess)
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 16)
         if !store.fullDiskAccess {
             SectionHeader(title: "How to allow it")
             Card {
@@ -236,17 +239,17 @@ private struct StepRow<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 12) {
             Text("\(n)")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: TextSize.label, weight: .semibold))
                 .frame(width: 24, height: 24)
                 .background(Palette.selection, in: Circle())
             Text(text)
-                .font(.system(size: 13))
+                .font(.system(size: TextSize.body))
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 12)
             trailing
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
 
@@ -279,7 +282,7 @@ private struct ScheduleStep: View {
                     BigToggle(isOn: $openAtLogin)
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 16)
             if LegacyAgent.isInstalled {
                 Footnote(text: "An older Mac Janitor background job from the developer install is on this Mac. "
                          + "Turning on automatic cleaning replaces it.")
@@ -340,10 +343,10 @@ private struct DoneStep: View {
             SettingRow(title: "Full Disk Access",
                        detail: store.fullDiskAccess ? "Everything can be checked."
                            : "Desktop, Documents, Downloads and the Trash are skipped.",
-                       symbol: "lock.shield.fill") {
+                       symbol: "lock.shield") {
                 StatusPill(text: store.fullDiskAccess ? "Granted" : "Off", good: store.fullDiskAccess)
             }
-            SettingRow(title: "Automatic cleaning", detail: automaticDetail, symbol: "clock.fill") {
+            SettingRow(title: "Automatic cleaning", detail: automaticDetail, symbol: "clock") {
                 if store.agentStatus == .requiresApproval {
                     Button("Allow") { SMAppService.openSystemSettingsLoginItems() }
                         .buttonStyle(SoftButtonStyle())
@@ -353,9 +356,10 @@ private struct DoneStep: View {
                 }
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 16)
         if let problem = store.problem {
-            ProblemBanner(text: problem) { store.problem = nil }.padding(.top, 10)
+            ProblemBanner(text: problem) { store.problem = nil }.padding(.top, 12)
+
         }
     }
 

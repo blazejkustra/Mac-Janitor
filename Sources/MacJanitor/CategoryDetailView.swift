@@ -16,13 +16,13 @@ struct CategoryDetailView: View {
             DetailHeader(category: category, bytes: store.plannedBytes(category), count: going.count)
             ForEach(store.issues(category), id: \.self) { issue in
                 Label(ProblemBanner.shorten(issue), systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
+                    .font(.system(size: TextSize.label))
                     .foregroundStyle(Palette.warning)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 8)
             }
             if items.isEmpty {
-                EmptyCategory(scanning: !store.covers(category)).padding(.top, 10)
+                EmptyCategory(scanning: !store.covers(category)).padding(.top, 12)
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
@@ -40,7 +40,8 @@ struct CategoryDetailView: View {
 
     /// A ScrollView in a MenuBarExtra window collapses unless given a height.
     private func estimatedHeight(_ sections: [Item]...) -> CGFloat {
-        sections.filter { !$0.isEmpty }.reduce(0) { $0 + CGFloat($1.count) * 66 + 44 }
+        sections.filter { !$0.isEmpty }.reduce(0) { $0 + CGFloat($1.count) * 70 + 48
+ }
     }
 }
 
@@ -54,7 +55,7 @@ private struct DetailHeader: View {
         VStack(alignment: .leading, spacing: 12) {
             Button { store.selected = nil } label: {
                 HStack(spacing: 4) {
-                    Image(systemName: "chevron.left").font(.system(size: 10, weight: .bold))
+                    Image(systemName: "chevron.left").font(.system(size: TextSize.label, weight: .semibold))
                     Text("All categories")
                 }
             }
@@ -64,16 +65,16 @@ private struct DetailHeader: View {
             .pointingCursor()
             HStack(alignment: .center, spacing: 12) {
                 IconTile(symbol: category.symbol, size: 40)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(category.title).font(.system(size: 17, weight: .semibold))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(category.title).font(.system(size: TextSize.heading, weight: .semibold))
                     Text(bytes > 0 ? "\(Format.bytes(bytes)) in \(count) items" : "Nothing to remove")
-                        .font(.system(size: 12))
+                        .font(.system(size: TextSize.body))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
             }
             Text(category.explanation(store.config))
-                .font(.system(size: 11.5))
+                .font(.system(size: TextSize.label))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -87,15 +88,15 @@ private struct EmptyCategory: View {
         VStack(spacing: 8) {
             if scanning {
                 ProgressView().controlSize(.small)
-                Text("Still checking…").font(.system(size: 12)).foregroundStyle(.secondary)
+                Text("Still checking…").font(.system(size: TextSize.body)).foregroundStyle(.secondary)
             } else {
-                Image(systemName: "checkmark.circle").font(.system(size: 22, weight: .light)).foregroundStyle(Palette.icon)
-                Text("Nothing to remove here right now").font(.system(size: 12)).foregroundStyle(.secondary)
+                Image(systemName: "checkmark.circle").font(.system(size: TextSize.title)).foregroundStyle(Palette.icon)
+                Text("Nothing to remove here right now").font(.system(size: TextSize.body)).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 26)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+        .padding(.vertical, 24)
+        .surface()
     }
 }
 
@@ -107,7 +108,7 @@ private struct ItemSection: View {
     var body: some View {
         if !items.isEmpty {
             SectionHeader(title: "\(title) (\(items.count))")
-            Card(radius: Metrics.cardRadius) {
+            Card(rowInset: 12) {
                 ForEach(items) { ItemRow(item: $0) }
             }
             if let note { Footnote(text: note) }
@@ -121,22 +122,22 @@ private struct ItemRow: View {
 
     var body: some View {
         let hovering = store.hoveredItem == item.id
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(item.label.title)
-                    .font(.system(size: 12.5, weight: .semibold))
+                    .font(.system(size: TextSize.body, weight: .semibold))
                     .foregroundStyle(item.kind == .failed ? AnyShapeStyle(Palette.critical) : AnyShapeStyle(.primary))
                     .lineLimit(1)
                     .truncationMode(.middle)
                 if !item.label.context.isEmpty {
                     Text(item.label.contextLine)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.system(size: TextSize.label, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
                 Text(Format.sentence(item.detail))
-                    .font(.system(size: 11))
+                    .font(.system(size: TextSize.label))
                     .foregroundStyle(item.kind == .failed ? AnyShapeStyle(Palette.critical) : AnyShapeStyle(.tertiary))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -144,13 +145,14 @@ private struct ItemRow: View {
             Spacer(minLength: 4)
             if item.bytes > 0 {
                 Text(Format.bytes(item.bytes))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: TextSize.body, weight: .semibold))
                     .monospacedDigit()
             }
             ItemActions(item: item, hovering: hovering)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .padding(.vertical, 8)
+
         .background(hovering ? Palette.cardHover : .clear)
         .contentShape(Rectangle())
         .help(Format.path(item.target))
@@ -180,9 +182,9 @@ private struct ItemActions: View {
             case .kept:
                 IconButton(symbol: "pin.fill", label: "Stop keeping this", tint: Palette.accent) { store.unpin(item.target) }
             case .pending:
-                Image(systemName: "hourglass").foregroundStyle(.tertiary).frame(width: 22, height: 22)
+                Image(systemName: "hourglass").foregroundStyle(.tertiary).frame(width: 24, height: 24)
             case .guarded:
-                Image(systemName: "lock.fill").foregroundStyle(.tertiary).frame(width: 22, height: 22)
+                Image(systemName: "lock").foregroundStyle(.tertiary).frame(width: 24, height: 24)
             }
         }
         .opacity(hovering || item.kind == .kept ? 1 : 0.55)

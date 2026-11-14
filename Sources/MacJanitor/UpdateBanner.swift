@@ -8,21 +8,20 @@ struct UpdateBanner: View {
     var body: some View {
         if let version = reminder.version {
             Button(action: showUpdate) {
-                HStack(spacing: 10) {
-                    IconTile(symbol: "arrow.down", size: 22, symbolStyle: Palette.accent)
+                HStack(spacing: 12) {
+                    IconTile(symbol: "arrow.down", size: 24, symbolStyle: Palette.accent)
                     Text("Update available: \(version)")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: TextSize.body, weight: .semibold))
                         .lineLimit(1)
-                    Spacer(minLength: 6)
+                    Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: TextSize.label, weight: .semibold))
                         .foregroundStyle(.tertiary)
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(hovering ? Palette.cardHover : Palette.card,
-                            in: RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous).strokeBorder(Palette.stroke))
+                .surface(hovering ? Palette.cardHover : Palette.card)
+
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
