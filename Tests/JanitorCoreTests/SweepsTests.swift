@@ -213,6 +213,12 @@ final class SweepsTests: XCTestCase {
         XCTAssertNotEqual(Int32(pgid), getpgrp())
     }
 
+    func testAccessProbeIgnoresMissingPaths() throws {
+        let readable = try make("readable")
+        XCTAssertTrue(Privacy.canOpenAny([root + "/missing", readable]))
+        XCTAssertFalse(Privacy.canOpenAny([root + "/missing"]))
+    }
+
     func testWalksLeaveAskingFoldersAloneWithoutFullDiskAccess() {
         let home = Paths.home.path
         XCTAssertEqual(Set(Privacy.unwalked(fullDiskAccess: false)),

@@ -220,8 +220,11 @@ private struct AccessStep: View {
                         .buttonStyle(SoftButtonStyle())
                         .pointingCursor()
                 }
-                StepRow(n: 3, text: "If macOS offers to quit and reopen it, choose Later. Scans pick up the access.") {
-                    EmptyView()
+                StepRow(n: 3, text: "Still waiting? Remove every Mac Janitor from the list with −, "
+                            + "add this one with +, then relaunch.") {
+                    Button("Relaunch") { Relaunch.now() }
+                        .buttonStyle(SoftButtonStyle())
+                        .pointingCursor()
                 }
             }
         }
