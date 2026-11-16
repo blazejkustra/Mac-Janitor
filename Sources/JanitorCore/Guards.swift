@@ -73,13 +73,23 @@ public struct Guards {
 /// ask, so without it they are skipped. Music and Pictures hold media libraries,
 /// never checkouts, and reading them asks for media access.
 public enum Privacy {
-    /// Readable only with Full Disk Access, and checking asks nothing.
-    static let probe = Paths.home.appendingPathComponent("Library/Application Support/com.apple.TCC/TCC.db").path
+    /// Each opens only with Full Disk Access, and checking asks nothing. Some are missing on
+    /// some Macs (the per-user TCC.db is absent on recent macOS), so any one opening is enough.
+    static let probes = [
+        "/Library/Application Support/com.apple.TCC/TCC.db",
+        Paths.home.path + "/Library/Application Support/com.apple.TCC/TCC.db",
+        Paths.home.path + "/Library/Safari",
+        Paths.home.path + "/Library/Containers/com.apple.stocks",
+    ]
 
-    public static var hasFullDiskAccess: Bool {
-        let fd = open(probe, O_RDONLY)
-        if fd >= 0 { close(fd) }
-        return fd >= 0
+    public static var hasFullDiskAccess: Bool { canOpenAny(probes) }
+
+    static func canOpenAny(_ paths: [String]) -> Bool {
+        paths.contains { path in
+            let fd = open(path, O_RDONLY)
+            if fd >= 0 { close(fd) }
+            return fd >= 0
+        }
     }
 
     public static let askingFolders = ["Desktop", "Documents", "Downloads"].map { Paths.home.path + "/" + $0 }
