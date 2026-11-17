@@ -132,6 +132,9 @@ final class Store: ObservableObject {
         store.reloadConfig()
         store.restoreSavedPreview()
         store.startObserving()
+        #if DEMO
+        if let cached = Demo.cachedPreview() { Task { await store.replayScan(cached) } }
+        #endif
         return store
     }
 
@@ -356,6 +359,7 @@ final class Store: ObservableObject {
 
     private func refreshIfDue(_ trigger: RefreshPolicy.Trigger) {
         guard live, busy == nil else { return }
+        if Demo.isOn, trigger != .forced, preview != nil { return }
         if Janitor.isRunning() { return watchScheduledRun() }
         if trigger == .timer, let failed = previewFailedAt, -failed.timeIntervalSinceNow < config.refreshMinutes * 60 { return }
         let decision = RefreshPolicy.decide(trigger, resultAge: preview.map { -$0.finishedAt.timeIntervalSinceNow },
@@ -408,6 +412,9 @@ final class Store: ObservableObject {
             preview = report
             previewedWith = cfg
             try? SavedPreview(report: report, config: cfg).save()
+            #if DEMO
+            Demo.cachePreview(report)
+            #endif
             // Settings changed, or a real run came and went, while it ran.
             if previewOutdated { refreshIfDue(.changed) }
         }
@@ -425,7 +432,7 @@ final class Store: ObservableObject {
     }
 
     private var plannedItemsNeedCheck: Bool {
-        guard live, let preview else { return false }
+        guard live, !Demo.isOn, let preview else { return false }
         let checked = max(preview.finishedAt, itemsCheckedAt ?? .distantPast)
         return -checked.timeIntervalSinceNow > Self.itemCheckAge
     }
@@ -466,9 +473,11 @@ final class Store: ObservableObject {
         quietRefresh = false
         busy = .cleaning
         problem = nil
-        let outcome = await JanitorRunner.run(dryRun: false, only: targets)
         #if DEMO
+        let outcome = await simulateClean(targets.map(\.id))
         if let report = outcome.report { recordDemoClean(report) }
+        #else
+        let outcome = await JanitorRunner.run(dryRun: false, only: targets)
         #endif
         busy = nil
         refresh()
@@ -479,6 +488,35 @@ final class Store: ObservableObject {
     }
 
     #if DEMO
+    private func simulateClean(_ ids: [String]) async -> JanitorRunner.Outcome {
+        let wanted = Set(ids)
+        let actions = preview?.actions.filter { wanted.contains($0.id) } ?? []
+        let report = await Task.detached(priority: .userInitiated) { Demo.simulateClean(actions) }.value
+        return JanitorRunner.Outcome(report: report)
+    }
+
+    /// Plays the scan UI over a cached preview instead of scanning again.
+    private func replayScan(_ cached: Report) async {
+        guard busy == nil else { return }
+        busy = .previewing
+        scan = ScanState()
+        let categories = JanitorCore.Category.allCases
+        let pause = UInt64(2_500_000_000 / categories.count)
+        for c in categories {
+            scan?.apply(.step("Checking \(c.rawValue)"))
+            try? await Task.sleep(nanoseconds: pause)
+            scan?.apply(.found(c, actions: cached.actions.filter { $0.category == c },
+                               skips: cached.skips.filter { $0.category == c }))
+        }
+        var report = cached
+        report.startedAt = Date()
+        report.finishedAt = Date()
+        preview = report
+        previewedWith = config
+        scan = nil
+        busy = nil
+    }
+
     private func recordDemoClean(_ report: Report) {
         let removed = report.actions.filter { $0.status == .removed }
         demoRemoved.formUnion(removed.map(\.id))
