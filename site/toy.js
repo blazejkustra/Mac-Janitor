@@ -200,6 +200,10 @@ class Folder {
 
   mount(parent) {
     parent.append(this.node);
+    this.measureBox();
+  }
+
+  measureBox() {
     this.tagW = this.tag.offsetWidth;
     this.tagH = this.tag.offsetHeight;
     this.halfW = Math.max(this.w, this.tagW) / 2 + 4;
@@ -208,6 +212,12 @@ class Folder {
     this.boxDy = (top + bottom) / 2;
     this.halfH = (bottom - top) / 2 + 3;
     this.render();
+  }
+
+  overlaps(other) {
+    const dx = Math.abs(other.x - this.x);
+    const dy = Math.abs(other.y + other.boxDy - this.y - this.boxDy);
+    return dx < other.halfW + this.halfW && dy < other.halfH + this.halfH;
   }
 
   box(pad = 0) {
@@ -453,12 +463,13 @@ class JanitorToy {
     this.sinkVel = 0;
     this.sinkOpen = false;
     this.cleaned = 0;
+    this.measureTimer = 0;
     this.visible = true;
     this.pageVisible = !document.hidden;
     this.frame = this.frame.bind(this);
     this.measure();
     this.setHint(this.startHint());
-    document.fonts?.ready.then(() => this.reserveHintWidth());
+    document.fonts?.ready.then(() => this.measure());
     this.bindPointer();
     this.bindLifecycle();
     this.seed();
@@ -492,6 +503,7 @@ class JanitorToy {
   measure() {
     this.reserveHintWidth();
     const rect = this.root.getBoundingClientRect();
+    const previous = this.rectRoot;
     this.width = rect.width;
     this.height = rect.height;
     this.scale = clamp(0.62 + rect.width / 2400, 0.76, 1);
@@ -506,6 +518,30 @@ class JanitorToy {
     const free = Math.max(0, rect.width * rect.height - blocked);
     this.cap = clamp(Math.round(free / (36000 * this.scale * this.scale)), 4, 16);
     this.rectRoot = rect;
+    if (previous) this.relayout(previous);
+  }
+
+  scheduleMeasure() {
+    clearTimeout(this.measureTimer);
+    this.measureTimer = setTimeout(() => this.measure(), 150);
+  }
+
+  relayout(previous) {
+    const sx = previous.width ? this.width / previous.width : 1;
+    const sy = previous.height ? this.height / previous.height : 1;
+    const settled = [];
+    this.alive().forEach((folder) => {
+      folder.measureBox();
+      folder.x *= sx;
+      folder.y *= sy;
+      const keep = settled.length < this.cap && (this.fits(folder, settled) || this.placeFolder(folder, settled));
+      if (keep) {
+        settled.push(folder);
+        folder.render();
+      } else {
+        folder.fade();
+      }
+    });
   }
 
   avoidNodes() {
@@ -552,8 +588,9 @@ class JanitorToy {
   }
 
   bindLifecycle() {
-    new ResizeObserver(() => this.measure()).observe(this.root);
-    this.avoidNodes().forEach((node) => new ResizeObserver(() => this.measure()).observe(node));
+    const observer = new ResizeObserver(() => this.scheduleMeasure());
+    observer.observe(this.root);
+    this.avoidNodes().forEach((node) => observer.observe(node));
     new IntersectionObserver(([entry]) => {
       this.visible = entry.isIntersecting;
       this.syncRunning();
@@ -571,9 +608,12 @@ class JanitorToy {
     if (shouldRun && !this.running) {
       this.running = true;
       this.last = performance.now();
-      requestAnimationFrame(this.frame);
+      this.rafId = requestAnimationFrame(this.frame);
     }
-    if (!shouldRun) this.running = false;
+    if (!shouldRun && this.running) {
+      this.running = false;
+      cancelAnimationFrame(this.rafId);
+    }
   }
 
   seed() {
@@ -606,7 +646,7 @@ class JanitorToy {
     const item = this.drawItem();
     const folder = new Folder(this, item, guard, 0, 0);
     folder.mount(this.field);
-    if (!this.placeFolder(folder)) {
+    if (!this.placeFolder(folder, this.alive())) {
       folder.node.remove();
       return;
     }
@@ -615,17 +655,21 @@ class JanitorToy {
     if (!this.reduced) this.puff(folder.x, folder.y);
   }
 
-  placeFolder(folder) {
+  placeFolder(folder, others) {
     for (let tries = 0; tries < 40; tries++) {
       folder.x = rand(folder.halfW + 8, this.width - folder.halfW - 8);
       folder.y = rand(folder.h / 2 + 40, this.height - folder.halfH * 2);
-      const box = folder.box(6);
-      const clear = this.obstacles.every((r) => box.r < r.l || box.l > r.r || box.b < r.t || box.t > r.b);
-      const roomy = this.folders.every((f) => Math.abs(f.x - folder.x) > f.halfW + folder.halfW || Math.abs(f.y + f.boxDy - folder.y - folder.boxDy) > f.halfH + folder.halfH);
       const away = Math.hypot(folder.x - this.pointer.x, folder.y - this.pointer.y) > 180;
-      if (clear && roomy && away) return true;
+      if (away && this.fits(folder, others)) return true;
     }
     return false;
+  }
+
+  fits(folder, others) {
+    const box = folder.box(6);
+    const inside = box.l >= 0 && box.r <= this.width && box.t >= 0 && box.b <= this.height;
+    const clear = this.obstacles.every((r) => box.r < r.l || box.l > r.r || box.b < r.t || box.t > r.b);
+    return inside && clear && others.every((other) => other === folder || !folder.overlaps(other));
   }
 
   alive() {
@@ -643,7 +687,7 @@ class JanitorToy {
       this.tickMotion(dt);
     }
     this.tickCounter(dt);
-    requestAnimationFrame(this.frame);
+    this.rafId = requestAnimationFrame(this.frame);
   }
 
   tickSpawner(dt) {
@@ -657,8 +701,8 @@ class JanitorToy {
   tickMotion(dt) {
     this.checkHits();
     this.folders.forEach((f) => f.update(dt));
+    this.separate(dt);
     this.keepInside();
-    this.separate();
     this.folders.forEach((f) => f.render());
     this.finishPops();
     this.tickParticles(dt);
@@ -784,11 +828,18 @@ class JanitorToy {
     }
   }
 
-  separate() {
+  separate(dt) {
     const list = this.alive();
     for (let i = 0; i < list.length; i++) {
       for (let j = i + 1; j < list.length; j++) this.collide(list[i], list[j]);
     }
+    list.forEach((folder) => this.unjam(folder, list, dt));
+  }
+
+  unjam(folder, list, dt) {
+    const jammed = list.some((other) => other !== folder && other.state === 'alive' && folder.overlaps(other));
+    folder.jammedFor = jammed ? (folder.jammedFor || 0) + dt : 0;
+    if (folder.jammedFor > 1) folder.fade();
   }
 
   collide(a, b) {
@@ -820,14 +871,14 @@ class JanitorToy {
   addFreed(gb) {
     this.freed += gb;
     if (this.reduced) this.shown = this.freed;
-    this.checkMilestone();
   }
 
   checkMilestone() {
-    const next = MILESTONES[this.milestone];
-    if (!next || this.freed < next.gb - 0.001) return;
-    this.milestone++;
-    this.setHint(next.text);
+    let reached = this.milestone;
+    while (reached < MILESTONES.length && this.shown >= MILESTONES[reached].gb - 0.05) reached++;
+    if (reached === this.milestone) return;
+    this.milestone = reached;
+    this.setHint(MILESTONES[reached - 1].text);
     this.countEl.classList.remove('is-milestone');
     void this.countEl.offsetWidth;
     this.countEl.classList.add('is-milestone');
@@ -840,6 +891,7 @@ class JanitorToy {
     if (text !== this.countText) {
       this.countText = text;
       this.countEl.textContent = text;
+      this.checkMilestone();
     }
   }
 
