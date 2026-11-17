@@ -13,6 +13,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      demo:
+        description: "Build the demo app (MacJanitor-Demo.dmg), which deletes nothing"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -83,13 +88,13 @@ jobs:
           export SPARKLE_ED_KEY_FILE="$RUNNER_TEMP/sparkle-ed-key"
           trap 'rm -f "$SPARKLE_ED_KEY_FILE"' EXIT
           printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$SPARKLE_ED_KEY_FILE"
-          ./scripts/release.sh
+          ./scripts/release.sh ${{ inputs.demo && '--demo' || '' }}
 
       - name: Ad-hoc DMG (by hand only)
         if: env.HAS_CERT != 'true' && github.ref_type != 'tag'
         run: |
           echo "::warning::No MACOS_CERT_P12 secret: an ad-hoc signed DMG, not notarized."
-          ./scripts/release.sh --adhoc
+          ./scripts/release.sh --adhoc ${{ inputs.demo && '--demo' || '' }}
 
       - uses: actions/upload-artifact@v7
         with:

@@ -14,7 +14,8 @@ public enum LegacyAgent {
     /// Unloads the agent and deletes its plist. Returns what it did, or nil when it is not installed.
     @discardableResult
     public static func remove() -> String? {
-        remove(label: label, in: launchAgents, bootout: launchctlBootout)
+        guard !Demo.isOn else { return nil }
+        return remove(label: label, in: launchAgents, bootout: launchctlBootout)
     }
 
     static func remove(label: String, in dir: URL, bootout: (String) -> Int32) -> String? {

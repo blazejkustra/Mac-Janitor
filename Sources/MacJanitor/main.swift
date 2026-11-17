@@ -14,4 +14,7 @@ if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
     MainActor.assumeIsolated { Snapshot.render(to: URL(fileURLWithPath: args[i + 1])) }
     exit(0)
 }
+#if DEMO
+Demo.resetData()
+#endif
 MacJanitorApp.main()

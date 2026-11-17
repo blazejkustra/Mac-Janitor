@@ -10,6 +10,11 @@ enum Background {
 
     static var agent: SMAppService { SMAppService.agent(plistName: agentPlistName) }
 
+    #if DEMO
+    /// A demo build ships no agent and registers nothing, but shows as set up.
+    static var status: SMAppService.Status { .enabled }
+    static func enable() throws {}
+    #else
     static var status: SMAppService.Status { agent.status }
 
     static func enable() throws {
@@ -21,6 +26,7 @@ enum Background {
         guard agent.status != .notRegistered && agent.status != .notFound else { return }
         try agent.unregister()
     }
+    #endif
 }
 
 extension LegacyAgent {

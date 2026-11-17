@@ -4,11 +4,14 @@
 # (Contents/Library/LaunchAgents), registered from the app's setup.
 # Usage: ./install/build-app.sh     then: open "build/Mac Janitor.app"
 # MACJANITOR_ARCHS="arm64 x86_64" builds a universal binary.
+# DEMO=1 builds the demo app (see Sources/JanitorCore/Demo.swift): its own bundle id, no
+# LaunchAgent and no update feed.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-BUNDLE_ID="${MACJANITOR_BUNDLE_ID:-com.blazejkustra.macjanitor}"
+DEMO="${DEMO:-}"
+BUNDLE_ID="${MACJANITOR_BUNDLE_ID:-com.blazejkustra.macjanitor${DEMO:+.demo}}"
 APP="build/Mac Janitor.app"
 VERSION="$(cat VERSION)"
 SPARKLE_FEED="https://github.com/blazejkustra/Mac-Janitor/releases/latest/download/appcast.xml"
@@ -20,9 +23,9 @@ for arch in ${MACJANITOR_ARCHS:-}; do ARCH_FLAGS="$ARCH_FLAGS --arch $arch"; don
 # version from, so the binary records the deployment target as its SDK and AppKit falls back
 # to the pre-Tahoe look. -isysroot records the real SDK.
 SDK="$(xcrun --sdk macosx --show-sdk-path)"
-BUILD_FLAGS="$ARCH_FLAGS -Xswiftc -Xclang-linker -Xswiftc -isysroot -Xswiftc -Xclang-linker -Xswiftc $SDK"
+BUILD_FLAGS="$ARCH_FLAGS -Xswiftc -Xclang-linker -Xswiftc -isysroot -Xswiftc -Xclang-linker -Xswiftc $SDK${DEMO:+ -Xswiftc -DDEMO}"
 
-echo "Building release $VERSION${MACJANITOR_ARCHS:+ for $MACJANITOR_ARCHS}..."
+echo "Building ${DEMO:+demo }release $VERSION${MACJANITOR_ARCHS:+ for $MACJANITOR_ARCHS}..."
 swift build -c release $BUILD_FLAGS --product MacJanitor
 BIN_DIR="$(swift build -c release $BUILD_FLAGS --show-bin-path)"
 
@@ -36,6 +39,16 @@ rm -rf "$SPARKLE/XPCServices" "$SPARKLE/Versions/B/XPCServices"
 cp assets/MenuBarIcon.pdf "$APP/Contents/Resources/MenuBarIcon.pdf"
 cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cp assets/Logo.pdf "$APP/Contents/Resources/Logo.pdf"
+
+sparkle_keys() {
+  [ -z "$DEMO" ] || return 0
+  cat <<KEYS
+  <key>SUFeedURL</key><string>$SPARKLE_FEED</string>
+  <key>SUPublicEDKey</key><string>$SPARKLE_PUBLIC_KEY</string>
+  <key>SUEnableAutomaticChecks</key><true/>
+  <key>SUScheduledCheckInterval</key><integer>86400</integer>
+KEYS
+}
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -52,17 +65,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
-  <key>SUFeedURL</key><string>$SPARKLE_FEED</string>
-  <key>SUPublicEDKey</key><string>$SPARKLE_PUBLIC_KEY</string>
-  <key>SUEnableAutomaticChecks</key><true/>
-  <key>SUScheduledCheckInterval</key><integer>86400</integer>
+$(sparkle_keys)
 </dict>
 </plist>
 PLIST
 
 # Hourly wake; the run itself decides from config.json (intervalHours, lowDiskGB,
 # paused) whether to clean. Wakes missed during sleep coalesce.
-cat > "$APP/Contents/Library/LaunchAgents/$BUNDLE_ID.agent.plist" <<PLIST
+[ -n "$DEMO" ] || cat > "$APP/Contents/Library/LaunchAgents/$BUNDLE_ID.agent.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">

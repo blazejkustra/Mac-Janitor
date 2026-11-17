@@ -11,6 +11,7 @@
 # Update signing: SPARKLE_ED_KEY_FILE (a `generate_keys -x` export), or the key `generate_keys`
 # stored in the login keychain. It signs the DMG for release/appcast.xml, the Sparkle feed.
 # --adhoc: no Developer ID, no notarization, no appcast; a DMG that other Macs open only via Open Anyway.
+# --demo: the demo app (DEMO=1 install/build-app.sh) as release/MacJanitor-Demo.dmg, no appcast.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -25,6 +26,7 @@ SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 SPARKLE_BIN=".build/artifacts/sparkle/Sparkle/bin"
 RELEASES="https://github.com/blazejkustra/Mac-Janitor/releases"
 ADHOC=false
+DEMO=""
 
 step() { printf '\n> %s\n' "$*"; }
 fail() { printf '\nerror: %s\n' "$*" >&2; exit 1; }
@@ -33,7 +35,8 @@ parse_args() {
   for arg in "$@"; do
     case "$arg" in
       --adhoc) ADHOC=true ;;
-      *) fail "unknown argument $arg (only --adhoc)" ;;
+      --demo) DEMO=1 ;;
+      *) fail "unknown argument $arg (only --adhoc, --demo)" ;;
     esac
   done
 }
@@ -63,7 +66,7 @@ notary_auth() {
 
 build_app() {
   step "Building $APP $VERSION (arm64 + x86_64)"
-  MACJANITOR_ARCHS="arm64 x86_64" MACJANITOR_SIGN_IDENTITY="-" ./install/build-app.sh
+  DEMO="$DEMO" MACJANITOR_ARCHS="arm64 x86_64" MACJANITOR_SIGN_IDENTITY="-" ./install/build-app.sh
   [ "$(lipo -archs "$APP/Contents/MacOS/MacJanitor")" = "x86_64 arm64" ] || fail "the executable is not universal"
   local sdk
   sdk="$(vtool -show-build "$APP/Contents/MacOS/MacJanitor" | awk '/ sdk / { print $2; exit }')"
@@ -166,6 +169,11 @@ XML
 }
 
 finish() {
+  if [ -n "$DEMO" ]; then
+    step "Done"
+    shasum -a 256 "$VERSIONED_DMG"
+    return
+  fi
   cp "$VERSIONED_DMG" "$STABLE_DMG"
   step "Done"
   shasum -a 256 "$VERSIONED_DMG" "$STABLE_DMG"
@@ -176,6 +184,7 @@ finish() {
 }
 
 parse_args "$@"
+[ -z "$DEMO" ] || VERSIONED_DMG="$OUT/MacJanitor-Demo.dmg"
 pick_identity
 $ADHOC || notary_auth
 WORK="$(mktemp -d)"
@@ -187,5 +196,5 @@ $ADHOC || notarize_app
 make_dmg
 $ADHOC || notarize_dmg
 $ADHOC || check_gatekeeper
-$ADHOC || make_appcast
+$ADHOC || [ -n "$DEMO" ] || make_appcast
 finish

@@ -181,6 +181,7 @@ extension FS {
     /// Unlinks everything in `purgeDir`. Purges take turns, so one started while another
     /// runs picks up what arrived meanwhile.
     static func purgeNow() -> PurgeResult {
+        guard !Demo.isOn else { return PurgeResult() }
         let lockFD = open(purgeDir + ".lock", O_CREAT | O_RDWR, 0o644)
         if lockFD >= 0 { flock(lockFD, LOCK_EX) }
         defer { if lockFD >= 0 { close(lockFD) } }
@@ -210,6 +211,7 @@ public enum Safety {
     public static var protectedPaths: [String] = []
 
     public static func check(_ raw: String) throws {
+        if Demo.isOn { throw JanitorError("a demo build removes nothing") }
         let path = FS.normalize(raw)
         let home = Paths.home.path
         guard path.hasPrefix("/"), path.split(separator: "/").count >= 3 else {

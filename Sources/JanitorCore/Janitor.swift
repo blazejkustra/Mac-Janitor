@@ -44,7 +44,8 @@ public enum Janitor {
         defer { lockFD.map { _ = close($0) } }
         // A clean from the applet returns once targets are out of the way, not unlinked.
         FS.deferRemoval = !dryRun && only != nil
-        if !dryRun { purgeInBackground() }
+        let planOnly = dryRun || Demo.isOn
+        if !planOnly { purgeInBackground() }
 
         let started = Date()
         let freeBefore = freeDiskBytes()
@@ -114,6 +115,9 @@ public enum Janitor {
         func record(_ a: Action) {
             var a = a
             if a.bytes == 0, let size = sizes[a.id] { a.bytes = size }
+            #if DEMO
+            if !dryRun { a = Demo.cleaned(a) }
+            #endif
             actions.append(a)
             let size = ByteCountFormatter.string(fromByteCount: a.bytes, countStyle: .file)
             var line = "\(a.status.rawValue) \(a.category.rawValue) \(a.target) (\(size)): \(a.reason)"
@@ -133,27 +137,27 @@ public enum Janitor {
                 wt.stayed.append(c.action.target)
                 continue
             }
-            record(dryRun ? c.action : wt.execute(c))
+            record(planOnly ? c.action : wt.execute(c))
         }
-        for a in scratch where wanted(a) && stillFree(a, a.target) { record(dryRun ? a : ScratchpadJanitor.execute(a)) }
+        for a in scratch where wanted(a) && stillFree(a, a.target) { record(planOnly ? a : ScratchpadJanitor.execute(a)) }
         for a in avds where wanted(a) && stillFree(a, AVDJanitor.directory(of: a, cfg)) {
-            record(dryRun ? a : AVDJanitor.execute(a, cfg))
+            record(planOnly ? a : AVDJanitor.execute(a, cfg))
         }
-        for a in images where wanted(a) { record(dryRun ? a : DockerJanitor.execute(a)) }
-        for a in builds + caches + trash where wanted(a) && stillFree(a, a.target) { record(dryRun ? a : removePath(a)) }
-        for a in large where wanted(a) && stillFree(a, a.target) { record(dryRun ? a : LargeFileJanitor.execute(a)) }
-        if !dryRun && only == nil { pruneSalvage(cfg, now: started, log: log) }
+        for a in images where wanted(a) { record(planOnly ? a : DockerJanitor.execute(a)) }
+        for a in builds + caches + trash where wanted(a) && stillFree(a, a.target) { record(planOnly ? a : removePath(a)) }
+        for a in large where wanted(a) && stillFree(a, a.target) { record(planOnly ? a : LargeFileJanitor.execute(a)) }
+        if !planOnly && only == nil { pruneSalvage(cfg, now: started, log: log) }
         for s in skips { log("skip \(s.category.rawValue) \(s.target): \(s.reason)") }
         for i in issues { log("issue \(i.category.rawValue): \(i.message)") }
 
         // Nobody waits on a scheduled run, so it frees the space before measuring it.
-        if !dryRun && !FS.deferRemoval { purgeLeftovers(log: log) }
+        if !planOnly && !FS.deferRemoval { purgeLeftovers(log: log) }
         let report = Report(startedAt: started, finishedAt: Date(), dryRun: dryRun,
                             freeBytesBefore: freeBefore, freeBytesAfter: freeDiskBytes(),
                             actions: actions, skips: skips, issues: issues,
                             removalDeferred: FS.deferRemoval ? true : nil)
         if !dryRun { try recordRun(report) }
-        if !dryRun && FS.deferRemoval { purgeInBackground() }
+        if !planOnly && FS.deferRemoval { purgeInBackground() }
         return report
     }
 

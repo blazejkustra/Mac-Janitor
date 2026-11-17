@@ -135,7 +135,11 @@ extension JSONDecoder {
 
 public enum Paths {
     public static let home = FileManager.default.homeDirectoryForCurrentUser
+    #if DEMO
+    public static let support = home.appendingPathComponent("Library/Application Support/MacJanitor Demo")
+    #else
     public static let support = home.appendingPathComponent("Library/Application Support/MacJanitor")
+    #endif
     /// The last real (non-dry) run, written by the launchd job.
     public static let lastRun = support.appendingPathComponent("last-run.json")
     /// One compact JSON line per real run.
@@ -146,7 +150,11 @@ public enum Paths {
     /// The last finished preview, shown at launch until a fresh one replaces it.
     public static let savedPreview = support.appendingPathComponent("preview.json")
     public static let dockerSeen = support.appendingPathComponent("docker-seen.json")
+    #if DEMO
+    public static let log = support.appendingPathComponent("mac-janitor.log")
+    #else
     public static let log = home.appendingPathComponent("Library/Logs/mac-janitor.log")
+    #endif
     public static let launchdLabel = "com.ignacy.mac-janitor"
 }
 

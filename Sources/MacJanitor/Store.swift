@@ -94,6 +94,10 @@ final class Store: ObservableObject {
     private var itemsCheckedAt: Date?
     /// When the last preview ended without a report; the timer waits an interval to retry.
     private var previewFailedAt: Date?
+    /// What a demo build's cleans reported removing, which is still on disk: hidden from
+    /// later previews and counted as free space until the app quits.
+    private var demoRemoved: Set<String> = []
+    private var demoFreedBytes: Int64 = 0
 
     /// Past this age, a clean checks the planned items again before asking.
     static let itemCheckAge: TimeInterval = 180
@@ -188,7 +192,7 @@ final class Store: ObservableObject {
     func items(_ c: JanitorCore.Category) -> [Item] {
         guard let preview = shown, config.enabled(c) else { return [] }
         var items: [Item] = []
-        for a in preview.actions where a.category == c {
+        for a in preview.actions where a.category == c && !demoRemoved.contains(a.id) {
             let kind: Item.Kind = a.status == .failed ? .failed : config.isKept(a.target) ? .kept : .planned
             let label = ItemLabel.describe(a.target, c)
             items.append(Item(id: a.id, target: a.target, name: label.title, bytes: a.bytes,
@@ -262,6 +266,7 @@ final class Store: ObservableObject {
     func refresh() {
         guard live else { return }
         (freeBytes, totalBytes) = Self.diskSpace()
+        freeBytes += demoFreedBytes
         lastRun = Report.load()
         if previewPredatesRun { dropWhatLastRunRemoved() }
         reloadConfig()
@@ -462,6 +467,9 @@ final class Store: ObservableObject {
         busy = .cleaning
         problem = nil
         let outcome = await JanitorRunner.run(dryRun: false, only: targets)
+        #if DEMO
+        if let report = outcome.report { recordDemoClean(report) }
+        #endif
         busy = nil
         refresh()
         if outcome.locked { return watchScheduledRun() }
@@ -469,6 +477,14 @@ final class Store: ObservableObject {
         if let report = outcome.report { showCleanResult(report) }
         refreshIfDue(.changed)
     }
+
+    #if DEMO
+    private func recordDemoClean(_ report: Report) {
+        let removed = report.actions.filter { $0.status == .removed }
+        demoRemoved.formUnion(removed.map(\.id))
+        demoFreedBytes += report.removedBytes
+    }
+    #endif
 
     /// Removed items go and failures stay. Kept and guarded items were not part of the
     /// run, so they carry over from the preview.
