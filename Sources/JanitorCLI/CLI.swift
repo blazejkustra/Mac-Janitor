@@ -21,6 +21,8 @@ public enum CLI {
 
       reset-cache    forget the saved preview; the app scans from scratch next launch
       purge          delete what earlier cleans moved aside but did not finish deleting
+
+    \(AgentCLI.usage)
     """
 
     public struct Options: Equatable {
@@ -53,11 +55,14 @@ public enum CLI {
     }
 
     /// Whether these arguments ask for a headless command rather than the applet.
-    public static func handles(_ arguments: [String]) -> Bool { ["run", "reset-cache", "purge"].contains(arguments.first) }
+    public static func handles(_ arguments: [String]) -> Bool {
+        arguments.first.map { ["run", "reset-cache", "purge"].contains($0) || AgentCLI.commands.contains($0) } ?? false
+    }
 
     public static func main(_ arguments: [String]) -> Int32 {
         if arguments == ["reset-cache"] { return resetCache() }
         if arguments == ["purge"] { return purge() }
+        if let command = arguments.first, AgentCLI.commands.contains(command) { return AgentCLI.main(arguments) }
         guard let options = Options.parse(arguments) else {
             printError(usage)
             return 2

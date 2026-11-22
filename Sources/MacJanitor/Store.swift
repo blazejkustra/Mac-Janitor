@@ -528,16 +528,13 @@ final class Store: ObservableObject {
     }
 
     func pin(_ target: String) {
-        update { $0.keep.append(target) }
+        update { $0.pin(target) }
         refreshIfDue(.changed)
     }
 
     /// Removes every `keep` entry that protects `target`.
     func unpin(_ target: String) {
-        update { cfg in
-            let entries = cfg.keepEntries(for: target)
-            cfg.keep.removeAll { entries.contains($0) }
-        }
+        update { $0.unpin(target) }
         if previewIsStale { refreshIfDue(.changed) }
     }
 
