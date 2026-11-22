@@ -34,7 +34,7 @@ public enum Revalidation {
     }
 
     /// The folder or file an action removes; nil for a Docker image.
-    static func location(of a: Action, _ cfg: Config) -> String? {
+    public static func location(of a: Action, _ cfg: Config) -> String? {
         switch a.category {
         case .dockerImage: return nil
         case .avd: return AVDJanitor.directory(of: a, cfg)

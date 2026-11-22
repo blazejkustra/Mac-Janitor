@@ -18,7 +18,7 @@ public struct PRInfo: Decodable, Sendable {
 }
 
 /// What the rules need to know about one worktree.
-public struct WorktreeFacts: Sendable {
+public struct WorktreeFacts: Codable, Sendable {
     public var path: String
     /// False for a plain copy in a worktree root that git does not know about.
     public var isGit: Bool
@@ -136,6 +136,7 @@ final class WorktreeJanitor {
     var stayed: [String] = []
     /// The worktrees and plain copies `plan` looked at.
     var scanned: [String] = []
+    var facts: [WorktreeFacts] = []
     /// Never walked into or removed with a folder: a stalled one hangs, a live one holds data.
     let mounts = FS.mountPoints()
 
@@ -468,6 +469,7 @@ final class WorktreeJanitor {
         let gitPaths = Set(checkouts.filter(\.facts.isGit).map(\.facts.path))
         checkouts.removeAll { !$0.facts.isGit && gitPaths.contains($0.facts.path) }
         scanned = checkouts.map(\.facts.path)
+        facts = checkouts.map(\.facts)
         let orphaned = Set(orphans)
 
         var candidates: [Candidate] = []

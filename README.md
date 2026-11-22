@@ -31,6 +31,39 @@ From 1.0.2 on, Mac Janitor updates itself: it checks once a day and asks before 
 
 Settings hold the schedule, which categories run and how long each waits.
 
+## Use with an AI agent
+
+Mac Janitor's CLI lets an agent (Claude Code, T3 Code) review what the rules leave alone: items a
+guard kept, booted simulators, big folders no category covers. The agent removes things only through
+`janitor remove`, which applies the same guards, salvage and log as a run.
+
+The CLI is the app's own executable:
+
+```sh
+"/Applications/Mac Janitor.app/Contents/MacOS/MacJanitor" skips
+ln -s "/Applications/Mac Janitor.app/Contents/MacOS/MacJanitor" ~/.local/bin/janitor   # optional
+```
+
+| Command | |
+|---|---|
+| `janitor plan` | what a run would remove, with sizes and reasons |
+| `janitor skips` | what a run keeps and why, with the processes holding each item |
+| `janitor unknown [--min-gb N]` | large folders in the home folder no category covers |
+| `janitor inspect <path>` | everything Mac Janitor knows about one path |
+| `janitor remove <path> --yes` | remove one item, only if a run would remove it now |
+| `janitor pin <path>` / `unpin <path>` | keep a path for good, or stop keeping it |
+
+Each takes `--json`. To install the Claude Code skill that walks an agent through a review:
+
+```sh
+mkdir -p ~/.claude/skills/mac-janitor
+curl -fsSL https://raw.githubusercontent.com/blazejkustra/Mac-Janitor/main/skill/mac-janitor/SKILL.md \
+  -o ~/.claude/skills/mac-janitor/SKILL.md
+```
+
+`./install/install.sh` offers the same when building from source. Then ask the agent to "free up
+disk space" or "check why X was not cleaned".
+
 ## What it removes
 
 Things a build, an install or a download makes again, once they have sat unused: old worktrees,
@@ -141,7 +174,8 @@ makes an unsigned test DMG. The DMG window's layout lives in `install/dmg/`, and
 <summary>Layout and files</summary>
 
 - `Sources/JanitorCore` - rules, guards, config, the run report
-- `Sources/JanitorCLI` - `janitor run ...`, shared by the CLI and the app's headless mode
+- `Sources/JanitorCLI` - `janitor run ...` and the agent commands, shared by the CLI and the app's headless mode
+- `skill/mac-janitor` - the Claude Code skill for agent-led disk reviews
 - `Sources/janitor` - the CLI, for developers
 - `Sources/MacJanitor` - the menu-bar app; `MacJanitor run ...` is the CLI
 - `assets/` - `logo.svg` and `menubar.svg` are the masters; `swift scripts/icons.swift build` makes the

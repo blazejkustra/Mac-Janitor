@@ -33,7 +33,7 @@ public enum Janitor {
     /// `sizes` are the preview's measurements by action id, for the targets a clean
     /// with `only` no longer measures itself.
     public static func run(_ cfg: Config, dryRun: Bool, only: Set<String>? = nil, sizes: [String: Int64] = [:],
-                           log: (String) -> Void = { _ in }) throws -> Report {
+                           details: RunDetails? = nil, log: (String) -> Void = { _ in }) throws -> Report {
         var cfg = cfg
         // Planning a category takes up to minutes (fetch, gh, walks); skip those `only` cannot name.
         if let only {
@@ -60,6 +60,7 @@ public enum Janitor {
                + cfg.cacheRoots)
             .map(FS.canonical)
         let worktrees = wt.plan()
+        details?.worktrees = wt.facts
         skips += wt.skips
         issues += wt.issues
         ScanProgress.found(.worktree, worktrees.map(\.action), skips)
@@ -128,6 +129,7 @@ public enum Janitor {
         }
         // Planning can take minutes (fetch, gh); look again at what is in use right before deleting.
         let fresh = dryRun ? guards : try Guards.gather()
+        details?.guards = fresh
         func stillFree(_ a: Action, _ paths: String..., allowingIdleHolders: Bool = false) -> Bool {
             let vetoes = paths.lazy.compactMap {
                 fresh.veto($0, allowingWorkingDirectories: allowingIdleHolders, allowingWatchman: allowingIdleHolders)
@@ -165,6 +167,14 @@ public enum Janitor {
         if !dryRun { try recordRun(report) }
         if !dryRun && FS.deferRemoval { purgeInBackground() }
         return report
+    }
+
+    /// What a run gathered on the way besides its report, for the agent commands.
+    public final class RunDetails {
+        public var guards = Guards(openPaths: [], launchAgentStrings: [])
+        public var worktrees: [WorktreeFacts] = []
+
+        public init() {}
     }
 
     /// The run lock, held exclusively until the descriptor is closed.

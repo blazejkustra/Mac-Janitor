@@ -65,6 +65,16 @@ public struct Config: Codable, Equatable, Sendable {
 
     public func isKept(_ target: String) -> Bool { !keepEntries(for: target).isEmpty }
 
+    public mutating func pin(_ target: String) {
+        if !keep.contains(target) { keep.append(target) }
+    }
+
+    /// Removes every `keep` entry that protects `target`.
+    public mutating func unpin(_ target: String) {
+        let entries = keepEntries(for: target)
+        keep.removeAll { entries.contains($0) }
+    }
+
     /// Defaults when the file is missing. A file that is not valid JSON, has an unknown
     /// key or a wrong value throws: guessing would unpause the job or drop the keep list.
     public static func load(from url: URL = Paths.config) throws -> Config {
