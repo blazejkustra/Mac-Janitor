@@ -68,6 +68,7 @@ final class ScanEventTests: XCTestCase {
         defer { try? FileManager.default.removeItem(atPath: tmp) }
         cfg.worktreeSearchRoot = tmp
         cfg.scratchpadRoot = tmp + "/scratch"
+        cfg.scratchRoots = []
         cfg.avdHome = tmp + "/avd"
         cfg.androidSDK = tmp + "/sdk"
         cfg.trashDir = tmp + "/trash"

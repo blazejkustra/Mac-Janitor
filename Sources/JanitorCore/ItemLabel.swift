@@ -34,6 +34,8 @@ extension ItemLabel {
             return ItemLabel(title: last(target), context: ["Trash"])
         case .largeFile:
             return ItemLabel(title: last(target), context: [tilde(parent(target), home: home)])
+        case .scratchpad where !last(parent(parent(target))).hasPrefix("claude-"):
+            return ItemLabel(title: last(target), context: [tilde(parent(target), home: home)])
         case .scratchpad:
             let session = String(last(target).prefix(8))
             return ItemLabel(title: "Session \(session)", context: [scratchpadProject(last(parent(target)), home: home)])
@@ -43,6 +45,8 @@ extension ItemLabel {
             return ItemLabel(title: "\(api) system image", context: parts.dropFirst().map { $0.replacingOccurrences(of: "_", with: " ") })
         case .avd:
             return ItemLabel(title: target.replacingOccurrences(of: "_", with: " "), context: ["emulator"])
+        case .simulator:
+            return simulatorLabel(target)
         case .dockerImage:
             return dockerLabel(target)
         }
@@ -131,6 +135,18 @@ extension ItemLabel {
         let homePrefix = home.replacingOccurrences(of: "/", with: "-") + "-"
         let rest = encoded.hasPrefix(homePrefix) ? String(encoded.dropFirst(homePrefix.count)) : encoded
         return rest.isEmpty ? "home folder" : rest
+    }
+
+    /// The name and runtime from the device's `device.plist`, e.g. "iPhone 17 Pro", "iOS 27.0 simulator".
+    static func simulatorLabel(_ target: String) -> ItemLabel {
+        let plist = FileManager.default.contents(atPath: target + "/device.plist")
+            .flatMap { try? PropertyListSerialization.propertyList(from: $0, format: nil) as? [String: Any] } ?? [:]
+        let runtime = (plist["runtime"] as? String)?.components(separatedBy: ".").last.map { id -> String in
+            let parts = id.split(separator: "-")
+            return parts.count > 1 ? "\(parts[0]) \(parts.dropFirst().joined(separator: "."))" : id
+        }
+        let name = plist["name"] as? String ?? String(last(target).prefix(8))
+        return ItemLabel(title: name, context: [[runtime, "simulator"].compactMap { $0 }.joined(separator: " ")])
     }
 
     static func dockerLabel(_ target: String) -> ItemLabel {

@@ -18,22 +18,25 @@ public struct Config: Codable, Equatable, Sendable {
 
     public var nodeModulesIdleDays = 3.0
     public var openPRIdleDays = 3.0
-    public var abandonedIdleDays = 30.0
+    public var abandonedIdleDays = 14.0
     /// A merged worktree must also be idle this long, so one an agent created
     /// minutes ago at `origin/main` is not removed under it.
     public var mergedIdleDays = 1.0
     public var dockerImageUnusedDays = 7.0
     public var avdUnusedDays = 7.0
-    public var scratchpadIdleDays = 14.0
+    public var simulatorUnusedDays = 7.0
+    public var scratchpadIdleDays = 3.0
     /// Build output goes once neither it nor its project changed for this long.
-    public var buildIdleDays = 14.0
+    public var buildIdleDays = 5.0
     /// A cache entry goes once nothing in it was written or read for this long.
-    public var cacheIdleDays = 30.0
+    public var cacheIdleDays = 7.0
     public var trashIdleDays = 7.0
     public var largeFileIdleDays = 60.0
     public var largeFileMinGB = 0.5
 
     public var scratchpadRoot = "/private/tmp/claude-\(getuid())"
+    /// Each folder directly inside one of these is one agent thread's scratch folder.
+    public var scratchRoots = [Paths.home.appendingPathComponent(".t3/scratch").path]
     public var avdHome = Paths.home.appendingPathComponent(".android/avd").path
     public var androidSDK = Paths.home.appendingPathComponent("Library/Android/sdk").path
     public var trashDir = Paths.home.appendingPathComponent(".Trash").path

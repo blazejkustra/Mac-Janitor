@@ -26,12 +26,12 @@ final class RulesTests: XCTestCase {
         XCTAssertNil(WorktreeRules.removalReason(facts(idle: 2.9) { $0.openPR = 9 }, cfg))
     }
 
-    func testAbandonedIgnoresStateButNotTheMonth() {
-        XCTAssertEqual(WorktreeRules.removalReason(facts(idle: 31) { $0.dirty = true; $0.locked = true }, cfg),
-                       "abandoned: untouched for 31.0 days")
-        XCTAssertEqual(WorktreeRules.removalReason(facts(idle: 31, git: false), cfg), "abandoned: untouched for 31.0 days")
-        XCTAssertNil(WorktreeRules.removalReason(facts(idle: 29, git: false), cfg))
-        XCTAssertNil(WorktreeRules.removalReason(facts(idle: 29), cfg))
+    func testAbandonedIgnoresStateButNotTwoWeeks() {
+        XCTAssertEqual(WorktreeRules.removalReason(facts(idle: 15) { $0.dirty = true; $0.locked = true }, cfg),
+                       "abandoned: untouched for 15.0 days")
+        XCTAssertEqual(WorktreeRules.removalReason(facts(idle: 15, git: false), cfg), "abandoned: untouched for 15.0 days")
+        XCTAssertNil(WorktreeRules.removalReason(facts(idle: 13, git: false), cfg))
+        XCTAssertNil(WorktreeRules.removalReason(facts(idle: 13), cfg))
     }
 
     func testLockedWorktreesOnlyGoWhenAbandoned() {
@@ -86,7 +86,7 @@ final class RulesTests: XCTestCase {
         let c = try Config.load(from: url)
         XCTAssertTrue(c.paused)
         XCTAssertEqual(c.openPRIdleDays, 5)
-        XCTAssertEqual(c.abandonedIdleDays, 30)
+        XCTAssertEqual(c.abandonedIdleDays, 14)
         var edited = c
         edited.paused = false
         edited.disabled = [.avd]
@@ -148,7 +148,7 @@ final class RulesTests: XCTestCase {
         let dir = FS.canonical(FileManager.default.temporaryDirectory.path) + "/janitor-salvage-\(UUID())"
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
-        for (name, days) in [("old.patch", 31.0), ("new.patch", 29.0)] {
+        for (name, days) in [("old.patch", 15.0), ("new.patch", 13.0)] {
             FileManager.default.createFile(atPath: dir + "/" + name, contents: Data())
             let t = time_t(Date().addingTimeInterval(-days * 86400).timeIntervalSince1970)
             var times = [timeval(tv_sec: t, tv_usec: 0), timeval(tv_sec: t, tv_usec: 0)]
@@ -163,7 +163,7 @@ final class RulesTests: XCTestCase {
     }
 
     func testLsofNeverStatsSoAStalledMountCannotHangIt() {
-        XCTAssertEqual(Guards.lsofArgs, ["lsof", "-n", "-b", "-w", "-Fn"])
+        XCTAssertEqual(Guards.lsofArgs, ["lsof", "-n", "-b", "-w", "-Ffn"])
     }
 
     func testTimeoutReturnsEvenWhenTheChildWillNotDie() {

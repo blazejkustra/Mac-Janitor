@@ -7,7 +7,7 @@ func planPath(_ category: Category, _ target: String, reason: String, cfg: Confi
         skips.append(Skip(category: category, target: target, reason: "kept", kept: true, bytes: measure(target)))
         return nil
     }
-    if let veto = guards.veto(target) ?? container.flatMap(guards.veto) {
+    if let veto = guards.veto(target) ?? container.flatMap({ guards.veto($0) }) {
         skips.append(Skip(category: category, target: target, reason: "\(reason), but \(veto)"))
         return nil
     }

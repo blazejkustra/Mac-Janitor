@@ -52,13 +52,14 @@ first.
 | What | When |
 |---|---|
 | `node_modules` in worktrees | the worktree is untouched for 3 days |
-| A worktree, whole | merged into main with nothing left to push (and idle 1 day), or its PR is open and it is untouched for 3 days, or it is untouched for 30 days |
+| A worktree, whole | merged into main with nothing left to push (and idle 1 day), or its PR is open and it is untouched for 3 days, or it is untouched for 14 days |
 | Docker images | no container uses them and they arrived locally over 7 days ago |
 | Android emulators (AVDs) | unused for 7 days |
-| Claude Code scratchpads (`/private/tmp/claude-<uid>/<project>/<session>`) | untouched for 14 days |
+| iOS simulator devices | shut down, and unused for 7 days (`lastUsedAt` from `simctl`) or their runtime is gone; deleted with `xcrun simctl delete` |
+| Agent scratch folders: Claude Code sessions (`/private/tmp/claude-<uid>/<project>/<session>`) and each folder in `scratchRoots` (T3 Code threads in `~/.t3/scratch`) | untouched for 3 days |
 | Android system images | no AVD uses them and no emulator read them for 7 days |
-| Build output: `node_modules`, `.next` (beside `package.json`), `Pods` (beside a `Podfile`), Gradle `build`, `.gradle` and `.cxx`, Xcode `build` (beside a project), Cargo `target`, SwiftPM `.build` | it sits in a git checkout outside hidden folders, and neither it nor that checkout changed for 14 days |
-| Cache entries: each entry in `~/Library/Caches`, Xcode DerivedData and DeviceSupport, CoreSimulator caches, the pnpm store, Gradle caches, `~/.cache`, `~/.npm/_npx`, pub, bun and yarn caches, the `/var/folders` cache folder | nothing in it written or read for 30 days; `com.apple.*` entries are left to macOS |
+| Build output: `node_modules`, `.next` (beside `package.json`), `Pods` (beside a `Podfile`), Gradle `build`, `.gradle` and `.cxx`, Xcode `build` (beside a project), Cargo `target`, SwiftPM `.build` | it sits in a git checkout outside hidden folders, and neither it nor that checkout changed for 5 days |
+| Cache entries: each entry in `~/Library/Caches`, Xcode DerivedData and DeviceSupport, CoreSimulator caches, the pnpm store, Gradle caches, `~/.cache`, `~/.npm/_npx`, pub, bun and yarn caches, the `/var/folders` cache folder | nothing in it written or read for 7 days; `com.apple.*` entries are left to macOS |
 | Items in the Trash | trashed over 7 days ago |
 | Stale large files (over 0.5 GB) in the home folder, outside hidden folders, `~/Library` and packages; disk images and git packs are left alone | untouched (not even read) for 60 days. Only removed when picked in the applet, and then moved to the Trash |
 
@@ -95,7 +96,9 @@ removing `node_modules` does not restart the clock.
 
 ### What it never removes
 
-- Anything a running process has open or as its working directory (`lsof`).
+- Anything a running process has open or as its working directory (`lsof`). The one exception:
+  a merged worktree with nothing left to push goes even while a process (often a forgotten
+  shell) has its working directory in it; that process is left in a deleted folder.
 - Anything a LaunchAgent plist mentions.
 - Anything in the keep list (the pin in the applet).
 - A `node_modules` that another checkout's `node_modules` symlinks into, unless that
@@ -106,11 +109,11 @@ removing `node_modules` does not restart the clock.
 - A worktree whose submodules hold commits no remote has, changes or untracked files: they live in
   the worktree's git dir and salvage cannot keep them.
 - A worktree with over 50 MB of untracked files, too much to salvage.
-- Running emulators, and images used by any container, including Docker Desktop's own.
+- Running emulators, booted simulators, and images used by any container, including Docker Desktop's own.
 
 Before a git worktree goes (plain copies get no salvage), uncommitted changes are saved as a patch, untracked files
 up to 50 MB as a tarball, both in `~/Library/Application Support/MacJanitor/salvage/`
-for 30 days. A commit that no branch or remote holds gets a
+for 14 days. A commit that no branch or remote holds gets a
 `refs/janitor/<name>-<time>` ref. Ignored files (build output, but also `.env.local`
 or `.claude/settings.local.json`) are not kept.
 

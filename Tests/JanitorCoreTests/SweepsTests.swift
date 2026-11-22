@@ -230,6 +230,7 @@ final class SweepsTests: XCTestCase {
         var cfg = Config()
         cfg.worktreeSearchRoot = root
         cfg.scratchpadRoot = root + "/scratch"
+        cfg.scratchRoots = []
         cfg.trashDir = root + "/Trash"
         cfg.cacheRoots = []
         cfg.androidSDK = root + "/sdk"

@@ -65,6 +65,7 @@ extension JanitorCore.Category {
         case .nodeModules: return "Worktree dependencies"
         case .dockerImage: return "Docker images"
         case .avd: return "Android emulators"
+        case .simulator: return "iOS simulators"
         case .scratchpad: return "Agent scratch files"
         case .build: return "Build output"
         case .cache: return "Caches"
@@ -80,6 +81,7 @@ extension JanitorCore.Category {
         case .nodeModules: return "node_modules in idle worktrees"
         case .dockerImage: return "Images no container uses"
         case .avd: return "Unused emulators and images"
+        case .simulator: return "Shut-down simulators unused lately"
         case .scratchpad: return "Old agent session folders"
         case .build: return "Compiled files in idle projects"
         case .cache: return "Data nothing has read lately"
@@ -102,8 +104,12 @@ extension JanitorCore.Category {
             return "Docker images no container has used for \(days(c.dockerImageUnusedDays)). Docker downloads them again when needed."
         case .avd:
             return "Android emulators and system images unused for \(days(c.avdUnusedDays)). Android Studio can recreate them."
+        case .simulator:
+            return "iOS simulator devices that are shut down and unused for \(days(c.simulatorUnusedDays)), or whose "
+                + "runtime is gone. Xcode can create them again; their installed apps and data go with them."
         case .scratchpad:
-            return "Claude Code session folders in /private/tmp untouched for \(days(c.scratchpadIdleDays))."
+            return "Agent scratch folders untouched for \(days(c.scratchpadIdleDays)): Claude Code sessions in "
+                + "/private/tmp and T3 Code threads in ~/.t3/scratch."
         case .build:
             return "Build folders such as node_modules, .next, Pods, build and target in git projects that have not "
                 + "changed for \(days(c.buildIdleDays)). The next build makes them again."
@@ -126,6 +132,7 @@ extension JanitorCore.Category {
         case .nodeModules: return "shippingbox"
         case .dockerImage: return "square.stack.3d.up"
         case .avd: return "iphone"
+        case .simulator: return "ipad.and.iphone"
         case .scratchpad: return "note.text"
         case .build: return "hammer"
         case .cache: return "archivebox"

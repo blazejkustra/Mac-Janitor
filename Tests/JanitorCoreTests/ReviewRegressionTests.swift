@@ -472,6 +472,39 @@ final class ReviewRegressionTests: XCTestCase {
         XCTAssertTrue(refs.hasPrefix("refs/janitor/a-b--") && refs.hasSuffix(" " + local), refs)
     }
 
+    func sleeper(in dir: String) throws -> Process {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        p.arguments = ["60"]
+        p.currentDirectoryURL = URL(fileURLWithPath: dir)
+        try p.run()
+        return p
+    }
+
+    func testAShellSittingInAMergedWorktreeDoesNotKeepIt() throws {
+        let repo = try makeRepo("repo")
+        let merged = repo + "-worktrees/merged"
+        let unpushed = repo + "-worktrees/unpushed"
+        addWT(repo, merged)
+        addWT(repo, unpushed)
+        sh(["git", "commit", "-q", "--allow-empty", "-m", "local"], cwd: unpushed)
+        age(repo, merged, days: 6)
+        age(repo, unpushed, days: 20)
+        let shells = try [sleeper(in: merged), sleeper(in: unpushed)]
+        defer { shells.forEach { $0.terminate() } }
+
+        let j = WorktreeJanitor(cfg: cfg(protecting: [repo]), guards: try Guards.gather())
+        let plan = j.plan()
+        XCTAssertEqual(plan.map(\.action.target), [merged])
+        XCTAssertTrue(plan[0].action.reason.hasSuffix("; in use only as a shell's working directory"), plan[0].action.reason)
+        XCTAssertEqual(j.skips.map(\.target), [unpushed])
+        XCTAssertTrue(j.skips[0].reason.contains("but in use (working directory: \(unpushed))"), j.skips[0].reason)
+
+        XCTAssertEqual(j.execute(plan[0]).status, .removed)
+        XCTAssertFalse(FS.exists(merged))
+        XCTAssertTrue(shells[0].isRunning)
+    }
+
     func testNonUTF8EditsSalvageByteForByte() throws {
         let repo = try makeRepo("repo")
         try Data([0x63, 0x61, 0x66, 0xE9, 0x0A]).write(to: URL(fileURLWithPath: repo + "/l.txt"))
