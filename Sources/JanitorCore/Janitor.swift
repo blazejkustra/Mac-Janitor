@@ -128,15 +128,17 @@ public enum Janitor {
         }
         // Planning can take minutes (fetch, gh); look again at what is in use right before deleting.
         let fresh = dryRun ? guards : try Guards.gather()
-        func stillFree(_ a: Action, _ paths: String..., allowingWorkingDirectories: Bool = false) -> Bool {
-            let vetoes = paths.lazy.compactMap { fresh.veto($0, allowingWorkingDirectories: allowingWorkingDirectories) }
+        func stillFree(_ a: Action, _ paths: String..., allowingIdleHolders: Bool = false) -> Bool {
+            let vetoes = paths.lazy.compactMap {
+                fresh.veto($0, allowingWorkingDirectories: allowingIdleHolders, allowingWatchman: allowingIdleHolders)
+            }
             guard let veto = vetoes.first else { return true }
             skips.append(Skip(category: a.category, target: a.target, reason: "\(a.reason), but \(veto)"))
             return false
         }
         for c in worktrees {
             guard wanted(c.action) && stillFree(c.action, c.action.target, c.checkout,
-                                                allowingWorkingDirectories: c.allowsWorkingDirectories) else {
+                                                allowingIdleHolders: c.allowsIdleHolders) else {
                 wt.stayed.append(c.action.target)
                 continue
             }

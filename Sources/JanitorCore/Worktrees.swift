@@ -61,8 +61,8 @@ public enum WorktreeRules {
     }
 
     /// A merged worktree with nothing left to push, idle past `mergedIdleDays`, goes even while
-    /// a process (an idle shell, say) has its working directory in it.
-    public static func allowsWorkingDirectories(_ f: WorktreeFacts, _ cfg: Config) -> Bool {
+    /// a process (an idle shell, say) has its working directory in it or watchman watches it.
+    public static func allowsIdleHolders(_ f: WorktreeFacts, _ cfg: Config) -> Bool {
         f.isGit && !f.locked && (f.mergedIntoMain || f.mergedPR != nil) && f.noPendingPushes && f.idleDays > cfg.mergedIdleDays
     }
 
@@ -93,8 +93,8 @@ struct Candidate {
     var kind: Kind
     /// The checkout the target is or sits in.
     var checkout: String
-    /// A process whose working directory is in the target does not keep it.
-    var allowsWorkingDirectories = false
+    /// A process whose working directory is in the target, or watchman watching it, does not keep it.
+    var allowsIdleHolders = false
 
     enum Kind: Equatable {
         case gitWorktree(repo: String, head: String)
@@ -493,7 +493,7 @@ final class WorktreeJanitor {
                 let kind: Candidate.Kind = c.entry?.head.map { .gitWorktree(repo: c.repo, head: $0) } ?? .plainDirectory
                 candidates.append(Candidate(
                     action: Action(category: .worktree, target: f.path, reason: reason, bytes: 0, status: .planned),
-                    kind: kind, checkout: f.path, allowsWorkingDirectories: WorktreeRules.allowsWorkingDirectories(f, cfg)))
+                    kind: kind, checkout: f.path, allowsIdleHolders: WorktreeRules.allowsIdleHolders(f, cfg)))
                 continue
             }
             guard cfg.enabled(.nodeModules), c.nodeModulesIdleDays > cfg.nodeModulesIdleDays else { continue }
@@ -519,16 +519,18 @@ final class WorktreeJanitor {
             let c = candidates[i]
             if cfg.isKept(c.action.target) {
                 skip(i, "kept", kept: true)
-            } else if let veto = guards.veto(c.action.target, allowingWorkingDirectories: c.allowsWorkingDirectories)
-                        ?? guards.veto(c.checkout, allowingWorkingDirectories: c.allowsWorkingDirectories) {
+            } else if let veto = guards.veto(c.action.target, allowingWorkingDirectories: c.allowsIdleHolders,
+                                             allowingWatchman: c.allowsIdleHolders)
+                        ?? guards.veto(c.checkout, allowingWorkingDirectories: c.allowsIdleHolders,
+                                       allowingWatchman: c.allowsIdleHolders) {
                 // A process in the worktree (a dev server writes nothing) still needs its packages.
                 skip(i, veto)
             } else if let mount = mounts.first(where: { $0.hasPrefix(c.action.target + "/") }) {
                 skip(i, "a volume is mounted at \(mount)")
             } else if case .gitWorktree = c.kind, let lost = unsalvageable(c.action.target) {
                 skip(i, lost)
-            } else if c.allowsWorkingDirectories, guards.workingDirectory(in: c.action.target) != nil {
-                candidates[i].action.reason += "; in use only as a shell's working directory"
+            } else if c.allowsIdleHolders, let holders = guards.idleHolders(in: c.action.target) {
+                candidates[i].action.reason += "; " + holders
             }
         }
 
@@ -638,6 +640,7 @@ final class WorktreeJanitor {
             return a
         }
         do {
+            if c.allowsIdleHolders { Watchman.unwatch(a.target) }
             switch c.kind {
             case .plainDirectory, .link:
                 try FS.remove(a.target)
