@@ -163,7 +163,7 @@ final class RulesTests: XCTestCase {
     }
 
     func testLsofNeverStatsSoAStalledMountCannotHangIt() {
-        XCTAssertEqual(Guards.lsofArgs, ["lsof", "-n", "-b", "-w", "-Ffn"])
+        XCTAssertEqual(Guards.lsofArgs, ["lsof", "-n", "-b", "-w", "-Fpcfn"])
     }
 
     func testTimeoutReturnsEvenWhenTheChildWillNotDie() {

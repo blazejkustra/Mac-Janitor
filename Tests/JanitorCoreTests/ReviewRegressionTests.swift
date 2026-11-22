@@ -67,6 +67,7 @@ final class ReviewRegressionTests: XCTestCase {
 
     override func tearDownWithError() throws {
         Safety.protectedPaths = []
+        Watchman.run = { Shell.run(["watchman", "--no-spawn"] + $0, timeout: 30) }
         try? FileManager.default.removeItem(atPath: root)
     }
 
@@ -503,6 +504,56 @@ final class ReviewRegressionTests: XCTestCase {
         XCTAssertEqual(j.execute(plan[0]).status, .removed)
         XCTAssertFalse(FS.exists(merged))
         XCTAssertTrue(shells[0].isRunning)
+    }
+
+    var watchmanCalls: [[String]] = []
+
+    func fakeWatchman(roots: [String]) {
+        Watchman.run = { [unowned self] args in
+            watchmanCalls.append(args)
+            let list = try! JSONEncoder().encode(Watchman.WatchList(roots: roots))
+            return ShellResult(status: 0, stdout: args == ["watch-list"] ? String(decoding: list, as: UTF8.self) : "{}", stderr: "")
+        }
+    }
+
+    func testWatchmanWatchingAMergedWorktreeDoesNotKeepIt() throws {
+        let repo = try makeRepo("repo")
+        let merged = repo + "-worktrees/merged"
+        let unpushed = repo + "-worktrees/unpushed"
+        let busy = repo + "-worktrees/busy"
+        for wt in [merged, unpushed, busy] { addWT(repo, wt) }
+        sh(["git", "commit", "-q", "--allow-empty", "-m", "local"], cwd: unpushed)
+        for wt in [merged, unpushed, busy] { age(repo, wt, days: 20) }
+        let guards = Guards(openPaths: [busy + "/a.txt"], watchmanPaths: [merged, unpushed, busy], launchAgentStrings: [])
+
+        let j = WorktreeJanitor(cfg: cfg(protecting: [repo]), guards: guards)
+        let plan = j.plan()
+        XCTAssertEqual(plan.map(\.action.target), [merged])
+        XCTAssertTrue(plan[0].action.reason.hasSuffix("; held only by watchman"), plan[0].action.reason)
+        XCTAssertEqual(Set(j.skips.map(\.target)), [unpushed, busy])
+        let reasons = Dictionary(uniqueKeysWithValues: j.skips.map { ($0.target, $0.reason) })
+        XCTAssertTrue(reasons[unpushed]!.hasSuffix("but in use (open: \(unpushed))"), reasons[unpushed]!)
+        XCTAssertTrue(reasons[busy]!.hasSuffix("but in use (open: \(busy)/a.txt)"), reasons[busy]!)
+
+        fakeWatchman(roots: [merged, merged + "/app", unpushed, repo])
+        XCTAssertEqual(j.execute(plan[0]).status, .removed)
+        XCTAssertFalse(FS.exists(merged))
+        XCTAssertEqual(watchmanCalls, [["watch-list"], ["watch-del", merged], ["watch-del", merged + "/app"]])
+    }
+
+    func testAMergedWorktreeGoesWhenWatchmanCannotBeAsked() throws {
+        let repo = try makeRepo("repo")
+        let merged = repo + "-worktrees/merged"
+        addWT(repo, merged)
+        age(repo, merged, days: 20)
+        Watchman.run = { _ in ShellResult(status: 127, stdout: "", stderr: "watchman: not found") }
+
+        let j = WorktreeJanitor(cfg: cfg(protecting: [repo]),
+                                guards: Guards(openPaths: [], watchmanPaths: [merged], launchAgentStrings: []))
+        let plan = j.plan()
+        XCTAssertEqual(plan.map(\.action.target), [merged])
+        XCTAssertEqual(j.execute(plan[0]).status, .removed)
+        XCTAssertFalse(FS.exists(merged))
     }
 
     func testNonUTF8EditsSalvageByteForByte() throws {

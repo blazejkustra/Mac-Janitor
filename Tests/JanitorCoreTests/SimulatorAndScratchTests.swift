@@ -23,11 +23,33 @@ final class WorkingDirectoryGuardTests: XCTestCase {
         XCTAssertEqual(agent.veto("/wt", allowingWorkingDirectories: true), "referenced by LaunchAgent x.plist")
     }
 
+    func testLsofOutputSeparatesWatchmanFromOtherProcesses() {
+        let output = "p1802\ncwatchman\nfcwd\nn/\nf5\nn/wt\np9\ncnode\nf7\nn/wt/metro.log\n"
+        let parsed = Guards.parseLsof(output)
+        XCTAssertEqual(parsed.watchman, ["/wt"])
+        XCTAssertEqual(parsed.open, ["/wt/metro.log"])
+        XCTAssertEqual(parsed.cwd, ["/"])
+    }
+
+    func testWatchmanVetoesUnlessAllowed() {
+        let g = Guards(openPaths: [], watchmanPaths: ["/wt"], launchAgentStrings: [])
+        XCTAssertEqual(g.veto("/wt", allowingWorkingDirectories: true), "in use (open: /wt)")
+        XCTAssertNil(g.veto("/wt", allowingWatchman: true))
+        XCTAssertEqual(g.idleHolders(in: "/wt"), "held only by watchman")
+        let both = Guards(openPaths: [], cwdPaths: ["/wt"], watchmanPaths: ["/wt"], launchAgentStrings: [])
+        XCTAssertEqual(both.idleHolders(in: "/wt"), "in use only as a shell's working directory and by watchman")
+    }
+
+    func testOpenFilesStillVetoWhenWatchmanIsAllowed() {
+        let g = Guards(openPaths: ["/wt/metro.log"], watchmanPaths: ["/wt"], launchAgentStrings: [])
+        XCTAssertEqual(g.veto("/wt", allowingWorkingDirectories: true, allowingWatchman: true), "in use (open: /wt/metro.log)")
+    }
+
     func testOnlyMergedFullyPushedIdleWorktreesIgnoreWorkingDirectories() {
         let cfg = Config()
         var merged = WorktreeFacts(path: "/wt", isGit: true, idleDays: 6)
         merged.mergedPR = 455
-        XCTAssertTrue(WorktreeRules.allowsWorkingDirectories(merged, cfg))
+        XCTAssertTrue(WorktreeRules.allowsIdleHolders(merged, cfg))
 
         var dirty = merged
         dirty.dirty = true
@@ -37,7 +59,7 @@ final class WorkingDirectoryGuardTests: XCTestCase {
         locked.locked = true
         var abandoned = WorktreeFacts(path: "/wt", isGit: true, idleDays: 40)
         abandoned.headOnRemote = true
-        for f in [dirty, fresh, locked, abandoned] { XCTAssertFalse(WorktreeRules.allowsWorkingDirectories(f, cfg)) }
+        for f in [dirty, fresh, locked, abandoned] { XCTAssertFalse(WorktreeRules.allowsIdleHolders(f, cfg)) }
     }
 }
 

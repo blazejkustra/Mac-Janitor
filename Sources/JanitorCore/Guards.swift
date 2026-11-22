@@ -7,17 +7,21 @@ public struct Guards {
     var openPaths: [String]
     /// Working directories of processes, sorted like `openPaths`.
     var cwdPaths: [String]
+    /// What the watchman daemon holds open, sorted like `openPaths`. It keeps every root it ever watched.
+    var watchmanPaths: [String]
     var launchAgentStrings: [(plist: String, value: String)]
 
-    init(openPaths: [String], cwdPaths: [String] = [], launchAgentStrings: [(plist: String, value: String)]) {
+    init(openPaths: [String], cwdPaths: [String] = [], watchmanPaths: [String] = [],
+         launchAgentStrings: [(plist: String, value: String)]) {
         self.openPaths = Set(openPaths).sorted()
         self.cwdPaths = Set(cwdPaths).sorted()
+        self.watchmanPaths = Set(watchmanPaths).sorted()
         self.launchAgentStrings = launchAgentStrings
     }
 
     /// Without -b, lsof stats every mount point and file, waiting up to 15 s on each, so
     /// a stalled mount can run it past the timeout. Its paths come from the kernel either way.
-    static let lsofArgs = ["lsof", "-n", "-b", "-w", "-Ffn"]
+    static let lsofArgs = ["lsof", "-n", "-b", "-w", "-Fpcfn"]
 
     public static func gather() throws -> Guards {
         // Every process of this user: cwd, executables, mapped and open files.
@@ -36,21 +40,34 @@ public struct Guards {
             else { continue }
             for s in strings(in: plist) { agentStrings.append((name, s)) }
         }
-        return Guards(openPaths: paths.open, cwdPaths: paths.cwd, launchAgentStrings: agentStrings)
+        return Guards(openPaths: paths.open, cwdPaths: paths.cwd, watchmanPaths: paths.watchman,
+                      launchAgentStrings: agentStrings)
     }
 
-    /// Splits `lsof -Ffn` output by descriptor: each `n` line names the file of the `f` line before it.
-    static func parseLsof(_ output: String) -> (open: [String], cwd: [String]) {
-        var open: [String] = [], cwd: [String] = []
-        var fd = ""
+    /// Splits `lsof -Fpcfn` output by descriptor and process: each `n` line names the file of the
+    /// `f` line before it, held by the process of the `c` line before that.
+    static func parseLsof(_ output: String) -> (open: [String], cwd: [String], watchman: [String]) {
+        var open: [String] = [], cwd: [String] = [], watchman: [String] = []
+        var command = "", fd = ""
         for line in output.split(separator: "\n") {
-            if line.hasPrefix("f") {
+            if line.hasPrefix("p") {
+                command = ""
+            } else if line.hasPrefix("c") {
+                command = String(line.dropFirst())
+            } else if line.hasPrefix("f") {
                 fd = String(line.dropFirst())
             } else if line.hasPrefix("n/") {
-                if fd == "cwd" { cwd.append(String(line.dropFirst())) } else { open.append(String(line.dropFirst())) }
+                let path = String(line.dropFirst())
+                if fd == "cwd" {
+                    cwd.append(path)
+                } else if command == "watchman" {
+                    watchman.append(path)
+                } else {
+                    open.append(path)
+                }
             }
         }
-        return (open, cwd)
+        return (open, cwd, watchman)
     }
 
     static func strings(in value: Any) -> [String] {
@@ -63,9 +80,11 @@ public struct Guards {
     }
 
     /// Why `path` must not be removed, or nil. With `allowingWorkingDirectories`, a process
-    /// whose cwd is in it does not count: it is left in a deleted folder.
-    public func veto(_ path: String, allowingWorkingDirectories: Bool = false) -> String? {
+    /// whose cwd is in it does not count: it is left in a deleted folder. With `allowingWatchman`,
+    /// neither does the watchman daemon, which is told to drop its watch before removal.
+    public func veto(_ path: String, allowingWorkingDirectories: Bool = false, allowingWatchman: Bool = false) -> String? {
         if let hit = Self.first(at: path, in: openPaths) { return "in use (open: \(hit))" }
+        if !allowingWatchman, let hit = watchmanHold(in: path) { return "in use (open: \(hit))" }
         if !allowingWorkingDirectories, let hit = workingDirectory(in: path) { return "in use (working directory: \(hit))" }
         let prefix = path + "/"
         if let hit = launchAgentStrings.first(where: { $0.value == path || $0.value.contains(prefix) }) {
@@ -76,6 +95,19 @@ public struct Guards {
 
     /// A process working directory at or under `path`.
     public func workingDirectory(in path: String) -> String? { Self.first(at: path, in: cwdPaths) }
+
+    /// A path at or under `path` that the watchman daemon holds open.
+    public func watchmanHold(in path: String) -> String? { Self.first(at: path, in: watchmanPaths) }
+
+    /// What `veto` let through for a merged, idle worktree, or nil when nothing holds it.
+    public func idleHolders(in path: String) -> String? {
+        switch (workingDirectory(in: path) != nil, watchmanHold(in: path) != nil) {
+        case (true, true): return "in use only as a shell's working directory and by watchman"
+        case (true, false): return "in use only as a shell's working directory"
+        case (false, true): return "held only by watchman"
+        case (false, false): return nil
+        }
+    }
 
     /// `path` itself or the first entry under it, in a sorted list.
     static func first(at path: String, in sorted: [String]) -> String? {
@@ -92,6 +124,26 @@ public struct Guards {
         if let hit = first(notBelow: path), hit == path { return hit }
         if let hit = first(notBelow: prefix), hit.hasPrefix(prefix) { return hit }
         return nil
+    }
+}
+
+/// The watchman daemon, asked to drop its watches on a folder about to go.
+enum Watchman {
+    static var run: ([String]) -> ShellResult = { Shell.run(["watchman", "--no-spawn"] + $0, timeout: 30) }
+
+    struct WatchList: Codable { var roots: [String] }
+
+    /// Empty when watchman is missing, not running or fails.
+    static func roots() -> [String] {
+        let r = run(["watch-list"])
+        guard r.ok, let list = try? JSONDecoder().decode(WatchList.self, from: Data(r.stdout.utf8)) else { return [] }
+        return list.roots
+    }
+
+    static func unwatch(_ path: String) {
+        for root in roots() where root == path || root.hasPrefix(path + "/") {
+            run(["watch-del", root])
+        }
     }
 }
 
