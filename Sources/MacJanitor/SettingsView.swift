@@ -380,6 +380,7 @@ struct Threshold {
         case .nodeModules: return [Threshold(title: "Worktree idle for", key: \.nodeModulesIdleDays)]
         case .dockerImage: return [Threshold(title: "Unused for", key: \.dockerImageUnusedDays)]
         case .avd: return [Threshold(title: "Unused for", key: \.avdUnusedDays)]
+        case .simulator: return [Threshold(title: "Unused for", key: \.simulatorUnusedDays)]
         case .scratchpad: return [Threshold(title: "Untouched for", key: \.scratchpadIdleDays)]
         case .build: return [Threshold(title: "Project unchanged for", key: \.buildIdleDays)]
         case .cache: return [Threshold(title: "Unused for", key: \.cacheIdleDays)]

@@ -170,31 +170,102 @@ enum AVDJanitor {
     }
 }
 
-enum ScratchpadJanitor {
-    /// Claude Code keeps one directory per session under `<root>/<project>/<session>`.
-    static func plan(_ cfg: Config, guards: Guards, now: Date, skips: inout [Skip]) -> [Action] {
-        let cutoff = now.addingTimeInterval(-cfg.scratchpadIdleDays * 86400)
-        var actions: [Action] = []
-        let root = cfg.scratchpadRoot
-        for project in (try? FileManager.default.contentsOfDirectory(atPath: root)) ?? [] {
-            let pdir = root + "/" + project
-            guard FS.isDirectory(pdir) else { continue }
-            for session in (try? FileManager.default.contentsOfDirectory(atPath: pdir)) ?? [] {
-                let sdir = pdir + "/" + session
-                guard FS.isDirectory(sdir) else { continue }
-                let newest = FS.newestMTime(sdir, newerThan: cutoff) ?? .distantPast
-                guard newest <= cutoff else { continue }
-                if let a = planPath(.scratchpad, sdir, reason: "untouched for \(days(newest, now)) days",
-                                    cfg: cfg, guards: guards, skips: &skips) { actions.append(a) }
+enum SimulatorJanitor {
+    /// One device of `xcrun simctl list devices --json`.
+    struct Device: Decodable, Equatable {
+        var udid: String
+        var name: String
+        var state: String
+        var isAvailable: Bool?
+        var dataPath: String?
+        var lastUsedAt: String?
+        var lastBootedAt: String?
+
+        /// The device folder `xcrun simctl delete` removes.
+        var directory: String? { dataPath.map { ($0 as NSString).deletingLastPathComponent } }
+    }
+
+    struct Listing: Decodable {
+        var devices: [String: [Device]]
+    }
+
+    static func devices(fromJSON data: Data) throws -> [Device] {
+        try JSONDecoder().decode(Listing.self, from: data).devices.values.flatMap { $0 }.sorted { $0.udid < $1.udid }
+    }
+
+    static func lastUsed(_ d: Device) -> Date? {
+        let iso = ISO8601DateFormatter()
+        if let date = (d.lastUsedAt ?? d.lastBootedAt).flatMap(iso.date) { return date }
+        return d.dataPath.flatMap(FS.lstatInfo).map(FS.mtime)
+    }
+
+    /// Why a device should go, or nil. Only shut down devices ever go: one whose runtime
+    /// is gone, or one unused for `simulatorUnusedDays`.
+    static func removalReason(_ d: Device, cfg: Config, now: Date) -> String? {
+        guard d.state == "Shutdown", d.directory != nil else { return nil }
+        if d.isAvailable == false { return "its runtime is no longer installed" }
+        guard let used = lastUsed(d) else { return nil }
+        let age = now.timeIntervalSince(used) / 86400
+        return age > cfg.simulatorUnusedDays ? "unused for \(String(format: "%.1f", age)) days" : nil
+    }
+
+    static func plan(_ cfg: Config, guards: Guards, now: Date, skips: inout [Skip], issues: inout [Issue]) -> [Action] {
+        let r = Shell.run(["xcrun", "simctl", "list", "devices", "--json"], timeout: 60)
+        guard r.ok else {
+            if !r.notFound && FS.exists(Paths.home.path + "/Library/Developer/CoreSimulator") {
+                issues.append(Issue(.simulator, "xcrun simctl failed: \(r.stderr.trimmingCharacters(in: .whitespacesAndNewlines))"))
             }
+            return []
         }
-        return actions
+        guard let list = try? devices(fromJSON: Data(r.stdout.utf8)) else {
+            issues.append(Issue(.simulator, "xcrun simctl printed a device list janitor cannot read"))
+            return []
+        }
+        return plan(list, cfg: cfg, guards: guards, now: now, skips: &skips)
+    }
+
+    static func plan(_ list: [Device], cfg: Config, guards: Guards, now: Date, skips: inout [Skip]) -> [Action] {
+        list.compactMap { d -> Action? in
+            guard let reason = removalReason(d, cfg: cfg, now: now), let dir = d.directory else { return nil }
+            return planPath(.simulator, dir, reason: reason, cfg: cfg, guards: guards, skips: &skips)
+        }
     }
 
     static func execute(_ a: Action) -> Action {
+        var a = a
+        let udid = (a.target as NSString).lastPathComponent
+        let r = Shell.run(["xcrun", "simctl", "delete", udid], timeout: 300)
+        a.status = r.ok ? .removed : .failed
+        if !r.ok { a.error = r.stderr.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return a
+    }
+}
+
+enum ScratchpadJanitor {
+    /// Claude Code keeps one directory per session under `<scratchpadRoot>/<project>/<session>`;
+    /// other agents keep one per thread directly in a `scratchRoots` entry.
+    static func plan(_ cfg: Config, guards: Guards, now: Date, skips: inout [Skip]) -> [Action] {
+        let cutoff = now.addingTimeInterval(-cfg.scratchpadIdleDays * 86400)
+        let projects = subfolders(cfg.scratchpadRoot)
+        let sessions = projects.flatMap(subfolders) + cfg.scratchRoots.flatMap(subfolders)
+        return sessions.compactMap { dir -> Action? in
+            let newest = FS.newestMTime(dir, newerThan: cutoff) ?? .distantPast
+            guard newest <= cutoff else { return nil }
+            return planPath(.scratchpad, dir, reason: "untouched for \(days(newest, now)) days",
+                            cfg: cfg, guards: guards, skips: &skips)
+        }
+    }
+
+    static func subfolders(_ dir: String) -> [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? []).sorted()
+            .map { dir + "/" + $0 }.filter(FS.isDirectory)
+    }
+
+    static func execute(_ a: Action, _ cfg: Config) -> Action {
         let done = removePath(a)
-        // Drop the project folder once its last session is gone; rmdir refuses a non-empty one.
-        if done.status == .removed { rmdir((a.target as NSString).deletingLastPathComponent) }
+        let parent = (a.target as NSString).deletingLastPathComponent
+        // Drop a Claude Code project folder once its last session is gone; rmdir refuses a non-empty one.
+        if done.status == .removed && !cfg.scratchRoots.contains(parent) { rmdir(parent) }
         return done
     }
 }

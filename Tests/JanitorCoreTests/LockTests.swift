@@ -14,6 +14,7 @@ final class LockTests: XCTestCase {
         cfg.disabled = Category.allCases.filter { $0 != .scratchpad }
         cfg.worktreeSearchRoot = root
         cfg.scratchpadRoot = root
+        cfg.scratchRoots = []
 
         let held = try Janitor.lock()
         XCTAssertTrue(Janitor.isRunning())

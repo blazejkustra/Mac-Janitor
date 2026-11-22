@@ -43,9 +43,10 @@ public enum Revalidation {
     }
 
     /// The planner's vetoes: something has it open, a LaunchAgent names it, a volume is
-    /// mounted inside it, or for packages, something is open in their checkout.
+    /// mounted inside it, or for packages, something is open in their checkout. Whether a
+    /// working directory keeps a worktree is left to the clean, which plans it again.
     static func veto(_ a: Action, _ path: String, guards: Guards, mounts: Set<String>) -> String? {
-        if let veto = guards.veto(path) { return veto }
+        if let veto = guards.veto(path, allowingWorkingDirectories: a.category == .worktree) { return veto }
         if let mount = mounts.first(where: { $0.hasPrefix(path + "/") }) { return "a volume is mounted at \(mount)" }
         guard a.category == .nodeModules, let checkout = checkout(containing: path) else { return nil }
         return guards.veto(checkout)

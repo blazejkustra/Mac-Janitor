@@ -56,7 +56,8 @@ public enum Janitor {
         ScanProgress.step("Looking for git projects and worktrees")
         let wt = WorktreeJanitor(cfg: cfg, guards: guards, only: only)
         Safety.protectedPaths = (wt.repos + wt.repos.map(WorktreeJanitor.root)
-            + [cfg.avdHome, cfg.scratchpadRoot, cfg.trashDir, cfg.androidSDK + "/system-images"] + cfg.cacheRoots)
+            + [cfg.avdHome, cfg.scratchpadRoot, cfg.trashDir, cfg.androidSDK + "/system-images"] + cfg.scratchRoots
+               + cfg.cacheRoots)
             .map(FS.canonical)
         let worktrees = wt.plan()
         skips += wt.skips
@@ -68,12 +69,16 @@ public enum Janitor {
             issues.append(Issue(c, "Desktop, Documents and Downloads are not searched; give janitor Full Disk Access "
                                 + "in System Settings > Privacy & Security"))
         }
-        ScanProgress.step("Checking Claude Code scratchpads")
+        ScanProgress.step("Checking agent scratch folders")
         let scratch = cfg.enabled(.scratchpad) ? ScratchpadJanitor.plan(cfg, guards: guards, now: started, skips: &skips) : []
         ScanProgress.found(.scratchpad, scratch, skips)
         ScanProgress.step("Checking Android emulators")
         let avds = cfg.enabled(.avd) ? AVDJanitor.plan(cfg, guards: guards, now: started, skips: &skips) : []
         ScanProgress.found(.avd, avds, skips)
+        ScanProgress.step("Checking iOS simulators")
+        let sims = cfg.enabled(.simulator)
+            ? SimulatorJanitor.plan(cfg, guards: guards, now: started, skips: &skips, issues: &issues) : []
+        ScanProgress.found(.simulator, sims, skips)
         ScanProgress.step("Checking Docker images")
         let images = cfg.enabled(.dockerImage) ? DockerJanitor.plan(cfg, now: started, skips: &skips, issues: &issues) : []
         ScanProgress.found(.dockerImage, images, skips)
@@ -123,22 +128,25 @@ public enum Janitor {
         }
         // Planning can take minutes (fetch, gh); look again at what is in use right before deleting.
         let fresh = dryRun ? guards : try Guards.gather()
-        func stillFree(_ a: Action, _ paths: String...) -> Bool {
-            guard let veto = paths.lazy.compactMap(fresh.veto).first else { return true }
+        func stillFree(_ a: Action, _ paths: String..., allowingWorkingDirectories: Bool = false) -> Bool {
+            let vetoes = paths.lazy.compactMap { fresh.veto($0, allowingWorkingDirectories: allowingWorkingDirectories) }
+            guard let veto = vetoes.first else { return true }
             skips.append(Skip(category: a.category, target: a.target, reason: "\(a.reason), but \(veto)"))
             return false
         }
         for c in worktrees {
-            guard wanted(c.action) && stillFree(c.action, c.action.target, c.checkout) else {
+            guard wanted(c.action) && stillFree(c.action, c.action.target, c.checkout,
+                                                allowingWorkingDirectories: c.allowsWorkingDirectories) else {
                 wt.stayed.append(c.action.target)
                 continue
             }
             record(dryRun ? c.action : wt.execute(c))
         }
-        for a in scratch where wanted(a) && stillFree(a, a.target) { record(dryRun ? a : ScratchpadJanitor.execute(a)) }
+        for a in scratch where wanted(a) && stillFree(a, a.target) { record(dryRun ? a : ScratchpadJanitor.execute(a, cfg)) }
         for a in avds where wanted(a) && stillFree(a, AVDJanitor.directory(of: a, cfg)) {
             record(dryRun ? a : AVDJanitor.execute(a, cfg))
         }
+        for a in sims where wanted(a) && stillFree(a, a.target) { record(dryRun ? a : SimulatorJanitor.execute(a)) }
         for a in images where wanted(a) { record(dryRun ? a : DockerJanitor.execute(a)) }
         for a in builds + caches + trash where wanted(a) && stillFree(a, a.target) { record(dryRun ? a : removePath(a)) }
         for a in large where wanted(a) && stillFree(a, a.target) { record(dryRun ? a : LargeFileJanitor.execute(a)) }

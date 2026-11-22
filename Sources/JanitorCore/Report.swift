@@ -5,6 +5,7 @@ public enum Category: String, Codable, CaseIterable, Sendable {
     case nodeModules = "node_modules"
     case dockerImage = "docker-image"
     case avd
+    case simulator
     case scratchpad
     case build
     case cache
