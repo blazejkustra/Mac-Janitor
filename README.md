@@ -98,7 +98,9 @@ removing `node_modules` does not restart the clock.
 
 - Anything a running process has open or as its working directory (`lsof`). The one exception:
   a merged worktree with nothing left to push goes even while a process (often a forgotten
-  shell) has its working directory in it; that process is left in a deleted folder.
+  shell) has its working directory in it; that process is left in a deleted folder. The same
+  worktree also goes while the watchman daemon still watches it; janitor runs
+  `watchman watch-del` on its roots first.
 - Anything a LaunchAgent plist mentions.
 - Anything in the keep list (the pin in the applet).
 - A `node_modules` that another checkout's `node_modules` symlinks into, unless that
